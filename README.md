@@ -15,3 +15,39 @@
 - WAF Detector
 - Web Directory Bruteforcer
 - Web Vulnerability Scanner
+
+## 🛠️ Installation
+
+Install my-project with npm
+
+```bash
+  npm install my-project
+  cd my-project
+```
+Install my-project with npm
+
+```bash
+  npm install my-project
+  cd my-project
+```
+Install my-project with npm
+
+```bash
+  npm install my-project
+  cd my-project
+```
+Install my-project with npm
+
+```bash
+  npm install my-project
+  cd my-project
+```
+
+## 💻 Using Spartiatis
+```bash
+cd Spartiatis
+```
+## 🔧 Updating Spartiatis
+```bash
+Place holder
+```
