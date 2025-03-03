@@ -51,3 +51,43 @@ cd Spartiatis
 ```bash
 Place holder
 ```
+## 🛠️ Tech Used
+
+
+<div align="left">
+
+
+<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" height="40" alt="python logo" />
+
+
+<img width="12" />
+
+
+<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/bash/bash-original.svg" height="40" alt="bash logo" />
+
+
+</div>
+
+
+
+
+
+###
+
+
+## ✨ Authors
+
+
+
+
+
+- [@billidev200](https://github.com/billidev200)
+
+
+- [@thanoss26](https://github.com/thanoss26)
+
+
+- [@ZAGGELOS](https://github.com/ZAGGELOS)
+
+
+- [@Chrisss8888](https://github.com/Chrisss8888)
