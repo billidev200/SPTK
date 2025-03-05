@@ -19,11 +19,10 @@ def main():
         scanner = PortScanner()
         results = scanner.scan_ports(target, ports)
         print("\nScan Results:")
-        print("Port\tStatus\tService\t")
-        print("-----\t------\t-------\t\t")
-        for port, status, service, in results:
-            print(f"Port {port} ({service}): {status}")
-
+        print("Port\tStatus\tService\t\tBanner")
+        print("-----\t------\t-------\t\t------")
+        for port, status, service, banner in results:
+            print(f"{port}\t{status}\t{service.ljust(8)}\t{banner[:50]}")
     elif choice == '6':
         exit()
 
@@ -33,14 +32,41 @@ def main():
 # Port Scanner
 class PortScanner:
     def __init__(self):
-        self.service_map = {
+        self.common_services = {
             21: 'FTP',
             22: 'SSH',
-            23: 'TELNET',
+            23: 'Telnet',
+            25: 'SMTP',
             80: 'HTTP',
             443: 'HTTPS',
+            3306: 'MySQL',
+            3389: 'RDP',
             8080: 'HTTP-ALT'
         }
+
+    def get_service_banner(self, target, port):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(2)
+                s.connect((target, port))
+                
+                
+                if port == 80 or port == 443:
+                    s.send(b"GET / HTTP/1.1\r\nHost: %s\r\n\r\n" % target.encode())
+                    banner = s.recv(1024).decode().split('\n')[0]
+                elif port == 21:
+                    banner = s.recv(1024).decode().strip()
+                elif port == 22:
+                    banner = s.recv(1024).decode().strip()
+                elif port == 25:
+                    banner = s.recv(1024).decode().strip()
+                else:
+                    s.send(b"\r\n\r\n")
+                    banner = s.recv(1024).decode().strip()
+                
+                return banner.split('\n')[0]  
+        except:
+            return "Unknown"
 
     def scan_port(self, target, port, timeout=1):
         try:
@@ -48,8 +74,10 @@ class PortScanner:
                 s.settimeout(timeout)
                 result = s.connect_ex((target, port))
                 if result == 0:
-                    service = self.service_map.get(port, 'Unknown')
-                    return (port, 'Open', service)
+                    # Get service name and banner
+                    service = self.common_services.get(port, 'Unknown')
+                    banner = self.get_service_banner(target, port)
+                    return (port, 'Open', service, banner)
         except:
             return None
         return None
