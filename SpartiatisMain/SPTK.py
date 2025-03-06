@@ -16,11 +16,18 @@ def main():
 
         if choice == '1':
             target = input("Enter target IP: ")
-            start_port = int(input("Enter start port: "))
-            end_port = int(input("Enter end port: "))
+            while True:
+                try:
+                    start_port = int(input("Enter start port [1-65535]: "))
+                    end_port = int(input("Enter end port [1-65535]: "))
+                    if 1 <= start_port <= 65535 and 1 <= end_port <= 65535 and start_port <= end_port:
+                        break
+                    print("[!] Invalid port range. Start port must be <= end port [1-65535]")
+                except ValueError:
+                    print("[!] Please enter valid numbers")
             ports = range(start_port, end_port+1)
             scanner = PortScanner()
-            results = scanner.scan_ports(target, range(1, 65535))
+            results = scanner.scan_ports(target, ports)
             print("\nScan Results:")
             print("Port\tStatus\tService\t\tBanner")
             print("-----\t------\t-------\t\t------")
@@ -112,6 +119,7 @@ class PortScanner:
             5269: 'XMPP Server',
             8291: 'Winbox',
             10000: 'Webmin'
+        
         }
 
     def get_service_banner(self, target, port):
@@ -143,7 +151,7 @@ class PortScanner:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(timeout)
                 result = s.connect_ex((target, port))
-                if result == 0:    
+                if result == 0:
                     service = self.common_services.get(port, 'Unknown')
                     banner = self.get_service_banner(target, port)
                     return (port, 'Open', service, banner)
