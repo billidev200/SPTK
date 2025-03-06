@@ -1,35 +1,44 @@
 import socket
 import threading
 import queue
+import time
+
 
 
 # Main Menu 
 def main():
-    print("Spartiatis Toolkit")
-    print("1. Port Scanner")
-    print("6. Exit")
+    while True:
+        print("Spartiatis Toolkit")
+        print("1. Port Scanner")
+        print("6. Exit")
 
-    choice = input("Select an option: ")
+        choice = input("Select an option: ")
 
-    if choice == '1':
-        target = input("Enter target IP: ")
-        start_port = int(input("Enter start port: "))
-        end_port = int(input("Enter end port: "))
-        ports = range(start_port, end_port+1)
-        scanner = PortScanner()
-        results = scanner.scan_ports(target, ports)
-        print("\nScan Results:")
-        print("Port\tStatus\tService\t\tBanner")
-        print("-----\t------\t-------\t\t------")
-        for port, status, service, banner in results:
-            print(f"{port}\t{status}\t{service.ljust(8)}\t{banner[:50]}")
-    elif choice == '6':
-        exit()
+        if choice == '1':
+            target = input("Enter target IP: ")
+            start_port = int(input("Enter start port: "))
+            end_port = int(input("Enter end port: "))
+            ports = range(start_port, end_port+1)
+            scanner = PortScanner()
+            results = scanner.scan_ports(target, ports)
+            print("\nScan Results:")
+            print("Port\tStatus\tService\t\tBanner")
+            print("-----\t------\t-------\t\t------")
+            for port, status, service, banner in results:
+                print(f"{port}\t{status}\t{service.ljust(8)}\t{banner[:50]}")
 
-    else:
-        print("Invalid option")
+            input("\nPress Enter to return to main menu...")
 
-# Port Scanner
+        elif choice == '6':
+            print("Exiting...")
+            break
+
+        else:
+             print("Invalid option, please try again")
+             time.sleep(1)
+         
+        
+# Port Scanner 
 class PortScanner:
     def __init__(self):
         self.common_services = {
@@ -73,8 +82,7 @@ class PortScanner:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(timeout)
                 result = s.connect_ex((target, port))
-                if result == 0:
-                    # Get service name and banner
+                if result == 0:    
                     service = self.common_services.get(port, 'Unknown')
                     banner = self.get_service_banner(target, port)
                     return (port, 'Open', service, banner)
