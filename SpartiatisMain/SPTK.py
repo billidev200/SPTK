@@ -20,7 +20,7 @@ def main():
             end_port = int(input("Enter end port: "))
             ports = range(start_port, end_port+1)
             scanner = PortScanner()
-            results = scanner.scan_ports(target, ports)
+            results = scanner.scan_ports(target, range(1, 65535))
             print("\nScan Results:")
             print("Port\tStatus\tService\t\tBanner")
             print("-----\t------\t-------\t\t------")
@@ -42,15 +42,76 @@ def main():
 class PortScanner:
     def __init__(self):
         self.common_services = {
+        # Network Core Services
             21: 'FTP',
             22: 'SSH',
             23: 'Telnet',
             25: 'SMTP',
+            53: 'DNS',
+            67: 'DHCP',
             80: 'HTTP',
+            110: 'POP3',
+            123: 'NTP',
+            143: 'IMAP',
+            161: 'SNMP',
+            389: 'LDAP',
             443: 'HTTPS',
+            445: 'SMB',
+            465: 'SMTPS',
+            514: 'Syslog',
+            587: 'SMTP Submission',
+            636: 'LDAPS',
+            993: 'IMAPS',
+            995: 'POP3S',
+            
+            # Database Services
+            1433: 'MSSQL',
+            1521: 'Oracle DB',
+            27017: 'MongoDB',
             3306: 'MySQL',
+            5432: 'PostgreSQL',
+            
+            # Remote Access
             3389: 'RDP',
-            8080: 'HTTP-ALT'
+            5900: 'VNC',
+            5985: 'WinRM',
+            
+            # Web Services
+            8000: 'HTTP-Alt',
+            8080: 'HTTP-Alt',
+            8081: 'HTTP-Alt',
+            8443: 'HTTPS-Alt',
+            8888: 'HTTP-Alt',
+            9000: 'PHP-FPM',
+            9200: 'Elasticsearch',
+            
+            # Messaging & Cache
+            11211: 'Memcached',
+            5672: 'AMQP',
+            6379: 'Redis',
+            
+            # Network Services
+            1194: 'OpenVPN',
+            1723: 'PPTP',
+            1812: 'RADIUS',
+            2049: 'NFS',
+            2375: 'Docker',
+            2376: 'Docker TLS',
+            3000: 'Node.js',
+            5000: 'UPnP',
+            5353: 'mDNS',
+            5431: 'SCCP',
+            5671: 'AMQP SSL',
+            6881: 'BitTorrent',
+            8333: 'Bitcoin',
+            
+            # Security Services
+            500: 'IPSec',
+            5060: 'SIP',
+            5222: 'XMPP',
+            5269: 'XMPP Server',
+            8291: 'Winbox',
+            10000: 'Webmin'
         }
 
     def get_service_banner(self, target, port):
