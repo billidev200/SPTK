@@ -4,12 +4,12 @@ import queue
 import time
 
 
-
 # Main Menu 
 def main():
-    while True:
+    while True:  
         print("Spartiatis Toolkit")
         print("1. Port Scanner")
+        print("2. Vulnerability Scanner")
         print("6. Exit")
 
         choice = input("Select an option: ")
@@ -35,7 +35,18 @@ def main():
                 print(f"{port}\t{status}\t{service.ljust(8)}\t{banner[:50]}")
 
             input("\nPress Enter to return to main menu...")
-
+        elif choice == '2':
+            target = input("Enter target IP: ")
+            port_scanner = PortScanner()
+            ports = port_scanner.scan_ports(target, range(1, 1025))
+            vuln_scanner = VulnerabilityScanner()
+            vulnerabilities = vuln_scanner.basic_checks(ports)
+            print("\nPotential vulnerabilities:")
+            for vuln in vulnerabilities:
+                print(f"- {vuln}")
+            
+            input("\nPress Enter to return to main menu...")
+            
         elif choice == '6':
             print("Exiting...")
             break
@@ -45,7 +56,7 @@ def main():
              time.sleep(1)
          
         
-# Port Scanner 
+# Port Scanner
 class PortScanner:
     def __init__(self):
         self.common_services = {
@@ -119,7 +130,6 @@ class PortScanner:
             5269: 'XMPP Server',
             8291: 'Winbox',
             10000: 'Webmin'
-        
         }
 
     def get_service_banner(self, target, port):
@@ -128,7 +138,7 @@ class PortScanner:
                 s.settimeout(2)
                 s.connect((target, port))
                 
-                
+                # Try to get banner
                 if port == 80 or port == 443:
                     s.send(b"GET / HTTP/1.1\r\nHost: %s\r\n\r\n" % target.encode())
                     banner = s.recv(1024).decode().split('\n')[0]
@@ -152,6 +162,7 @@ class PortScanner:
                 s.settimeout(timeout)
                 result = s.connect_ex((target, port))
                 if result == 0:
+                    
                     service = self.common_services.get(port, 'Unknown')
                     banner = self.get_service_banner(target, port)
                     return (port, 'Open', service, banner)
@@ -180,6 +191,19 @@ class PortScanner:
 
         q.join()
         return sorted(results, key=lambda x: x[0])
+
+# Vulnerability Scanner
+class VulnerabilityScanner:
+    def basic_checks(self, open_ports):
+        vulnerabilities = []
+        for port, status, service, banner in open_ports:  
+            if service == 'FTP' and port == 21:
+                vulnerabilities.append("Potential FTP anonymous login")
+            elif service == 'SSH' and port == 22:
+                vulnerabilities.append("Check for outdated SSH versions")
+            elif service == 'HTTP' and port == 80:
+                vulnerabilities.append("Check for common web vulnerabilities")
+        return vulnerabilities
     
 if __name__ == "__main__":
     main()  
