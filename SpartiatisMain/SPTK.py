@@ -2,6 +2,7 @@ import socket
 import threading
 import queue
 import time
+import re
 
 
 # Main Menu 
@@ -35,17 +36,32 @@ def main():
                 print(f"{port}\t{status}\t{service.ljust(8)}\t{banner[:50]}")
 
             input("\nPress Enter to return to main menu...")
+
         elif choice == '2':
-            target = input("Enter target IP: ")
+            while True:
+                target = input("Enter target IP: ").strip()
+                if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", target):
+                    print("[!] Invalid IP address format")
+                    continue
+                try:
+                    octets = list(map(int, target.split('.')))
+                    if not all(0 <= octet <= 255 for octet in octets):
+                        raise ValueError
+                except (ValueError, AttributeError):
+                    print("[!] Invalid IP address values")
+                    continue
+                break
+
             port_scanner = PortScanner()
             ports = port_scanner.scan_ports(target, range(1, 1025))
             vuln_scanner = VulnerabilityScanner()
             vulnerabilities = vuln_scanner.basic_checks(ports)
-            print("\nPotential vulnerabilities:")
-            for vuln in vulnerabilities:
-                print(f"- {vuln}")
             
-            input("\nPress Enter to return to main menu...")
+            print("\n[!] Potential vulnerabilities")
+            for vuln in vulnerabilities:
+                print(f"{vuln}")
+            
+            input("\n[+] Press Enter to return to main menu...")
             
         elif choice == '6':
             print("Exiting...")
