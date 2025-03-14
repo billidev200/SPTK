@@ -6,8 +6,9 @@ import re
 import paramiko
 import ftplib
 import telnetlib
-import requests 
+import requests
 from urllib.parse import urljoin
+import os
 
 
 
@@ -19,6 +20,7 @@ def main():
         print("2. Vulnerability Scanner")
         print("3. Service Bruteforcer")
         print("4. WAF Scanner")
+        print("5. Directory Bruteforcer")
         print("6. Exit")
 
         choice = input("Select an option: ")
@@ -52,7 +54,7 @@ def main():
                     print("[!] Invalid IP address format")
                     continue
                 try:
-                    
+
                     octets = list(map(int, target.split('.')))
                     if not all(0 <= octet <= 255 for octet in octets):
                         raise ValueError
@@ -119,19 +121,64 @@ def main():
             
             input("\n[+] Press Enter to return to main menu...")
 
+        elif choice == '5':
+            while True:
+                url = input("Enter base URL (e.g., http://example.com): ").strip()
+                if not re.match(r'^https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', url):
+                    print("[!] Invalid URL format. Must include http:// or https://")
+                    continue
+                
+                try:
+                    parsed = requests.utils.urlparse(url)
+                    if not all([parsed.scheme, parsed.netloc]):
+                        raise ValueError
+                    response = requests.head(url, timeout=5)
+                    if response.status_code >= 400:
+                        print("[!] Base URL appears unreachable")
+                        continue
+                except Exception as e:
+                    print(f"[!] URL validation failed: {str(e)}")
+                    continue
+                break
+
+        
+            while True:
+                wordlist = input("Wordlist path: ").strip()
+                if not os.path.isfile(wordlist):
+                    print("[!] File does not exist")
+                    continue
+                
+                try:
+                    with open(wordlist, 'r') as f:
+                        if not f.read(1):  
+                            print("[!] Wordlist is empty")
+                            continue
+                except UnicodeDecodeError:
+                    print("[!] Not a text file")
+                    continue
+                except Exception as e:
+                    print(f"[!] Error reading file: {str(e)}")
+                    continue
+                break
+
+            bruteforcer = DirectoryBruteforcer()
+            found = bruteforcer.discover_directories(url, wordlist)
+            print(f"\nFound {len(found)} directories")
+            input("\n[+] Press Enter to return to main menu...")
+
         elif choice == '6':
             print("Exiting...")
             break
 
         else:
-             print("Invalid option, please try again")
-             time.sleep(1)
+            print("Invalid option, please try again")
+            time.sleep(1)
                 
 # Port Scanner
 class PortScanner:
     def __init__(self):
         self.common_services = {
- # Network Core Services
+        # Network Core Services
             21: 'FTP',
             22: 'SSH',
             23: 'Telnet',
@@ -209,7 +256,7 @@ class PortScanner:
                 s.settimeout(2)
                 s.connect((target, port))
                 
-                
+
                 if port == 80 or port == 443:
                     s.send(b"GET / HTTP/1.1\r\nHost: %s\r\n\r\n" % target.encode())
                     banner = s.recv(1024).decode().split('\n')[0]
@@ -467,6 +514,37 @@ class WafScanner:
             return "Connection error"
         except Exception as e:
             return f"Detection error: {str(e)}"
+
+# Directory Bruteforcer
+class DirectoryBruteforcer:
+    def __init__(self, max_threads=10):
+        self.max_threads = max_threads
+
+    def discover_directories(self, base_url, wordlist):
+        found = []
+        q = queue.Queue()
+        with open(wordlist, 'r') as f:
+            for line in f:
+                q.put(line.strip())
+
+        def check_dir():
+            while not q.empty():
+                path = q.get()
+                url = urljoin(base_url, path)
+                try:
+                    response = requests.get(url, timeout=5)
+                    if response.status_code in [200, 301, 302, 403]:
+                        print(f"[+] Found: {url} ({response.status_code})")
+                        found.append(url)
+                except:
+                    pass
+                q.task_done()
+
+        for _ in range(self.max_threads):
+            threading.Thread(target=check_dir, daemon=True).start()
+
+        q.join()
+        return found
 
 if __name__ == "__main__":
     main()  
