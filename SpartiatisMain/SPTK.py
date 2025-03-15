@@ -9,10 +9,11 @@ import telnetlib
 import requests
 from urllib.parse import urljoin
 import os
+from tqdm import tqdm  
 
 
 
-# Main Menu 
+# Main Menu
 def main():
     while True:  
         print("Spartiatis Toolkit")
@@ -54,7 +55,6 @@ def main():
                     print("[!] Invalid IP address format")
                     continue
                 try:
-
                     octets = list(map(int, target.split('.')))
                     if not all(0 <= octet <= 255 for octet in octets):
                         raise ValueError
@@ -95,9 +95,9 @@ def main():
                 print(f"Successful login: {result[0]}:{result[1]}")
             else:
                 print("Bruteforce failed")
-            
-            input("\nPress Enter to return to main menu...")
 
+            input("\nPress Enter to return to main menu...")
+            
         elif choice == '4':
             while True:
                 url = input("Enter URL (e.g., http://example.com): ").strip()
@@ -173,12 +173,13 @@ def main():
         else:
             print("Invalid option, please try again")
             time.sleep(1)
-                
+
+
 # Port Scanner
 class PortScanner:
     def __init__(self):
         self.common_services = {
-        # Network Core Services
+            # Network Core Services
             21: 'FTP',
             22: 'SSH',
             23: 'Telnet',
@@ -199,19 +200,19 @@ class PortScanner:
             636: 'LDAPS',
             993: 'IMAPS',
             995: 'POP3S',
-            
+
             # Database Services
             1433: 'MSSQL',
             1521: 'Oracle DB',
             27017: 'MongoDB',
             3306: 'MySQL',
             5432: 'PostgreSQL',
-            
+
             # Remote Access
             3389: 'RDP',
             5900: 'VNC',
             5985: 'WinRM',
-            
+
             # Web Services
             8000: 'HTTP-Alt',
             8080: 'HTTP-Alt',
@@ -220,12 +221,12 @@ class PortScanner:
             8888: 'HTTP-Alt',
             9000: 'PHP-FPM',
             9200: 'Elasticsearch',
-            
+
             # Messaging & Cache
             11211: 'Memcached',
             5672: 'AMQP',
             6379: 'Redis',
-            
+
             # Network Services
             1194: 'OpenVPN',
             1723: 'PPTP',
@@ -240,7 +241,7 @@ class PortScanner:
             5671: 'AMQP SSL',
             6881: 'BitTorrent',
             8333: 'Bitcoin',
-            
+
             # Security Services
             500: 'IPSec',
             5060: 'SIP',
@@ -255,8 +256,8 @@ class PortScanner:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(2)
                 s.connect((target, port))
-                
 
+                # Try to get banner
                 if port == 80 or port == 443:
                     s.send(b"GET / HTTP/1.1\r\nHost: %s\r\n\r\n" % target.encode())
                     banner = s.recv(1024).decode().split('\n')[0]
@@ -269,8 +270,8 @@ class PortScanner:
                 else:
                     s.send(b"\r\n\r\n")
                     banner = s.recv(1024).decode().strip()
-                
-                return banner.split('\n')[0]  
+
+                return banner.split('\n')[0]
         except:
             return "Unknown"
 
@@ -280,7 +281,6 @@ class PortScanner:
                 s.settimeout(timeout)
                 result = s.connect_ex((target, port))
                 if result == 0:
-                    
                     service = self.common_services.get(port, 'Unknown')
                     banner = self.get_service_banner(target, port)
                     return (port, 'Open', service, banner)
@@ -310,11 +310,12 @@ class PortScanner:
         q.join()
         return sorted(results, key=lambda x: x[0])
 
+
 # Vulnerability Scanner
 class VulnerabilityScanner:
     def basic_checks(self, open_ports):
         vulnerabilities = []
-        for port, status, service, banner in open_ports:  
+        for port, status, service, banner in open_ports: 
             if service == 'FTP' and port == 21:
                 vulnerabilities.append("Potential FTP anonymous login")
             elif service == 'SSH' and port == 22:
@@ -322,6 +323,7 @@ class VulnerabilityScanner:
             elif service == 'HTTP' and port == 80:
                 vulnerabilities.append("Check for common web vulnerabilities")
         return vulnerabilities
+
 
 # Service BruteForcer
 class BruteForcer:
@@ -374,6 +376,7 @@ class BruteForcer:
                 except:
                     continue
         return None
+
 
 # Waf Scanner
 class WafScanner:
@@ -519,32 +522,55 @@ class WafScanner:
 class DirectoryBruteforcer:
     def __init__(self, max_threads=10):
         self.max_threads = max_threads
+        self.found = set()
+        self.lock = threading.Lock()
+        self.progress = 0
+        self.total_tasks = 0
 
     def discover_directories(self, base_url, wordlist):
-        found = []
         q = queue.Queue()
+        
         with open(wordlist, 'r') as f:
-            for line in f:
-                q.put(line.strip())
+            lines = [line.strip() for line in f]
+            self.total_tasks = len(lines)
+            for line in lines:
+                q.put(line)
 
-        def check_dir():
+        progress_thread = threading.Thread(target=self._update_progress, daemon=True)
+        progress_thread.start()
+
+        def worker():
             while not q.empty():
                 path = q.get()
                 url = urljoin(base_url, path)
                 try:
-                    response = requests.get(url, timeout=5)
+                    response = requests.get(url, timeout=3)
                     if response.status_code in [200, 301, 302, 403]:
-                        print(f"[+] Found: {url} ({response.status_code})")
-                        found.append(url)
-                except:
+                        with self.lock:
+                            if url not in self.found:
+                                self.found.add(url)
+                                tqdm.write(f"[+] Found: {url}")  
+                except Exception as e:
                     pass
-                q.task_done()
+                finally:
+                    with self.lock:
+                        self.progress += 1
+                    q.task_done()
 
         for _ in range(self.max_threads):
-            threading.Thread(target=check_dir, daemon=True).start()
+            threading.Thread(target=worker, daemon=True).start()
 
         q.join()
-        return found
+        return list(self.found)
+
+    def _update_progress(self):
+        with tqdm(total=self.total_tasks, desc="Scan Progress", position=0, leave=True) as pbar:
+            while self.progress < self.total_tasks:
+                pbar.n = self.progress
+                pbar.refresh()
+                time.sleep(0.1)
+            pbar.n = self.total_tasks
+            pbar.refresh()
 
 if __name__ == "__main__":
-    main()  
+    main()
