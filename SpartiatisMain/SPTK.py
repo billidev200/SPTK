@@ -6,25 +6,26 @@ import re
 import paramiko
 import ftplib
 import telnetlib
-import requests
+import requests 
 from urllib.parse import urljoin
 import os
-from tqdm import tqdm  
+from colorama import Fore, Style, init
+from tqdm import tqdm 
+init(autoreset=True)
 
 
-
-# Main Menu
+# Main Menu 
 def main():
-    while True:  
-        print("Spartiatis Toolkit")
-        print("1. Port Scanner")
-        print("2. Vulnerability Scanner")
-        print("3. Service Bruteforcer")
-        print("4. WAF Scanner")
-        print("5. Directory Bruteforcer")
-        print("6. Exit")
-
-        choice = input("Select an option: ")
+    while True:
+        show_banner()  
+        print(Fore.GREEN + "[1]" + Style.RESET_ALL + " Port Scanner")
+        print(Fore.GREEN + "[2]" + Style.RESET_ALL + " Vulnerability Scanner")
+        print(Fore.GREEN + "[3]" + Style.RESET_ALL + " Service Bruteforcer")
+        print(Fore.GREEN + "[4]" + Style.RESET_ALL + " WAF Detector")
+        print(Fore.GREEN + "[5]" + Style.RESET_ALL + " Web Directory Bruteforcer")
+        print(Fore.RED + "[6]" + Style.RESET_ALL + " Exit")
+        
+        choice = input("\n" + Fore.YELLOW + "[+] Select an option: " + Style.RESET_ALL)
 
         if choice == '1':
             target = input("Enter target IP: ")
@@ -34,32 +35,33 @@ def main():
                     end_port = int(input("Enter end port [1-65535]: "))
                     if 1 <= start_port <= 65535 and 1 <= end_port <= 65535 and start_port <= end_port:
                         break
-                    print("[!] Invalid port range. Start port must be <= end port [1-65535]")
+                    print(Fore.RED + "[!] Invalid port range. Start port must be <= end port [1-65535]")
                 except ValueError:
-                    print("[!] Please enter valid numbers")
+                    print(Fore.RED + "[!] Please enter valid numbers")
             ports = range(start_port, end_port+1)
             scanner = PortScanner()
             results = scanner.scan_ports(target, ports)
-            print("\nScan Results:")
+            print(Fore.RED + "\n[!] Scan Results:\n")
             print("Port\tStatus\tService\t\tBanner")
-            print("-----\t------\t-------\t\t------")
+            print("─────\t──────\t───────\t\t──────")
             for port, status, service, banner in results:
-                print(f"{port}\t{status}\t{service.ljust(8)}\t{banner[:50]}")
-
-            input("\nPress Enter to return to main menu...")
+                print(f"{port}\t{Fore.GREEN + status}\t{Fore.YELLOW + service.ljust(8)}\t{Fore.RED + banner[:50]}")
+            
+            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
 
         elif choice == '2':
             while True:
                 target = input("Enter target IP: ").strip()
                 if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", target):
-                    print("[!] Invalid IP address format")
+                    print(Fore.RED + "[!] Invalid IP address format" + Style.RESET_ALL)
                     continue
                 try:
+                    
                     octets = list(map(int, target.split('.')))
                     if not all(0 <= octet <= 255 for octet in octets):
                         raise ValueError
                 except (ValueError, AttributeError):
-                    print("[!] Invalid IP address values")
+                    print(Fore.RED + "[!] Invalid IP address values" + Style.RESET_ALL)
                     continue
                 break
 
@@ -68,14 +70,14 @@ def main():
             vuln_scanner = VulnerabilityScanner()
             vulnerabilities = vuln_scanner.basic_checks(ports)
             
-            print("\n[!] Potential vulnerabilities")
+            print(Fore.RED + "\n[!] Potential vulnerabilities")
             for vuln in vulnerabilities:
-                print(f"{vuln}")
+                print(Fore.RED + f"{vuln}" + Style.RESET_ALL)
             
-            input("\n[+] Press Enter to return to main menu...")
+            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
 
         elif choice == '3':
-            service = input("Service (SSH/FTP/Telnet): ").lower()
+            service = input("Select Service SSH,FTP,Telnet: ").lower()
             target = input("Target IP: ")
             username = input("Username: ")
             wordlist = input("Wordlist path: ")
@@ -89,20 +91,20 @@ def main():
                 result = bruteforcer.telnet_bruteforce(target, username, wordlist)
             else:
                 print("Invalid service")
-                continue  
+                continue 
 
             if result:
                 print(f"Successful login: {result[0]}:{result[1]}")
             else:
                 print("Bruteforce failed")
-
-            input("\nPress Enter to return to main menu...")
             
+            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+
         elif choice == '4':
             while True:
                 url = input("Enter URL (e.g., http://example.com): ").strip()
                 if not re.match(r'^https?://([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(/.*)?$', url):
-                    print("[!] Invalid URL format. Must include http:// or https:// and valid domain")
+                    print(Fore.RED + "[!] Invalid URL format. Must include http:// or https:// and valid domain" + Style.RESET_ALL)
                     continue
                 
                 
@@ -111,21 +113,21 @@ def main():
                     if not parsed.netloc:
                         raise ValueError
                 except:
-                    print("[!] Invalid URL structure")
+                    print(Fore.RED + "[!] Invalid URL structure" + Style.RESET_ALL)
                     continue
                 break
 
             waf_scanner = WafScanner()
             result = waf_scanner.detect_waf(url)
-            print(f"WAF Detection Result: {result}")
+            print(Fore.YELLOW + f"WAF Detection Result: {result}" + Style.RESET_ALL)
             
-            input("\n[+] Press Enter to return to main menu...")
+            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
 
         elif choice == '5':
             while True:
                 url = input("Enter base URL (e.g., http://example.com): ").strip()
                 if not re.match(r'^https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', url):
-                    print("[!] Invalid URL format. Must include http:// or https://")
+                    print(Fore.RED + "[!] Invalid URL format. Must include http:// or https://" + Style.RESET_ALL)
                     continue
                 
                 try:
@@ -134,48 +136,46 @@ def main():
                         raise ValueError
                     response = requests.head(url, timeout=5)
                     if response.status_code >= 400:
-                        print("[!] Base URL appears unreachable")
+                        print(Fore.RED + "[!] Base URL appears unreachable" + Style.RESET_ALL)
                         continue
                 except Exception as e:
-                    print(f"[!] URL validation failed: {str(e)}")
+                    print(Fore.RED + f"[!] URL validation failed: {str(e)}" + Style.RESET_ALL)
                     continue
                 break
 
-        
             while True:
                 wordlist = input("Wordlist path: ").strip()
                 if not os.path.isfile(wordlist):
-                    print("[!] File does not exist")
+                    print(Fore.RED + "[!] File does not exist" + Style.RESET_ALL)
                     continue
                 
                 try:
                     with open(wordlist, 'r') as f:
-                        if not f.read(1):  
-                            print("[!] Wordlist is empty")
+                        if not f.read(1):
+                            print(Fore.RED + "[!] Wordlist is empty" + Style.RESET_ALL)
                             continue
                 except UnicodeDecodeError:
-                    print("[!] Not a text file")
+                    print(Fore.RED + "[!] Not a text file" + Style.RESET_ALL)
                     continue
                 except Exception as e:
-                    print(f"[!] Error reading file: {str(e)}")
+                    print(Fore.RED + f"[!] Error reading file: {str(e)}" + Style.RESET_ALL)
                     continue
                 break
 
             bruteforcer = DirectoryBruteforcer()
             found = bruteforcer.discover_directories(url, wordlist)
             print(f"\nFound {len(found)} directories")
-            input("\n[+] Press Enter to return to main menu...")
+            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
 
         elif choice == '6':
             print("Exiting...")
-            break
+            break  
 
         else:
-            print("Invalid option, please try again")
+            print(Fore.RED + "[!] Invalid option, please try again")
             time.sleep(1)
 
-
-# Port Scanner
+# Port Scanner 
 class PortScanner:
     def __init__(self):
         self.common_services = {
@@ -200,19 +200,19 @@ class PortScanner:
             636: 'LDAPS',
             993: 'IMAPS',
             995: 'POP3S',
-
+            
             # Database Services
             1433: 'MSSQL',
             1521: 'Oracle DB',
             27017: 'MongoDB',
             3306: 'MySQL',
             5432: 'PostgreSQL',
-
+            
             # Remote Access
             3389: 'RDP',
             5900: 'VNC',
             5985: 'WinRM',
-
+            
             # Web Services
             8000: 'HTTP-Alt',
             8080: 'HTTP-Alt',
@@ -221,12 +221,12 @@ class PortScanner:
             8888: 'HTTP-Alt',
             9000: 'PHP-FPM',
             9200: 'Elasticsearch',
-
+            
             # Messaging & Cache
             11211: 'Memcached',
             5672: 'AMQP',
             6379: 'Redis',
-
+            
             # Network Services
             1194: 'OpenVPN',
             1723: 'PPTP',
@@ -241,7 +241,7 @@ class PortScanner:
             5671: 'AMQP SSL',
             6881: 'BitTorrent',
             8333: 'Bitcoin',
-
+            
             # Security Services
             500: 'IPSec',
             5060: 'SIP',
@@ -256,8 +256,8 @@ class PortScanner:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(2)
                 s.connect((target, port))
-
-                # Try to get banner
+                
+                
                 if port == 80 or port == 443:
                     s.send(b"GET / HTTP/1.1\r\nHost: %s\r\n\r\n" % target.encode())
                     banner = s.recv(1024).decode().split('\n')[0]
@@ -270,8 +270,8 @@ class PortScanner:
                 else:
                     s.send(b"\r\n\r\n")
                     banner = s.recv(1024).decode().strip()
-
-                return banner.split('\n')[0]
+                
+                return banner.split('\n')[0]  
         except:
             return "Unknown"
 
@@ -310,12 +310,11 @@ class PortScanner:
         q.join()
         return sorted(results, key=lambda x: x[0])
 
-
-# Vulnerability Scanner
+# Vulnerability Scanner 
 class VulnerabilityScanner:
     def basic_checks(self, open_ports):
         vulnerabilities = []
-        for port, status, service, banner in open_ports: 
+        for port, status, service, banner in open_ports:  
             if service == 'FTP' and port == 21:
                 vulnerabilities.append("Potential FTP anonymous login")
             elif service == 'SSH' and port == 22:
@@ -324,8 +323,7 @@ class VulnerabilityScanner:
                 vulnerabilities.append("Check for common web vulnerabilities")
         return vulnerabilities
 
-
-# Service BruteForcer
+#Service BruteForcer 
 class BruteForcer:
     def ssh_bruteforce(self, target, username, wordlist, port=22, timeout=5):
         with open(wordlist, 'r') as f:
@@ -335,7 +333,7 @@ class BruteForcer:
                     ssh = paramiko.SSHClient()
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(target, port=port, username=username, password=password, timeout=timeout)
-                    print(f"[+] SSH Success: {username}:{password}")
+                    print(Fore.GREEN + f"[!] SSH Success: {username}:{password}" + Style.RESET_ALL)
                     ssh.close()
                     return (username, password)
                 except:
@@ -377,8 +375,7 @@ class BruteForcer:
                     continue
         return None
 
-
-# Waf Scanner
+# WAF Scanner 
 class WafScanner:
     def __init__(self):
         self.waf_signatures = {
@@ -518,7 +515,7 @@ class WafScanner:
         except Exception as e:
             return f"Detection error: {str(e)}"
 
-# Directory Bruteforcer
+#Directory Bruteforcer
 class DirectoryBruteforcer:
     def __init__(self, max_threads=10):
         self.max_threads = max_threads
@@ -526,9 +523,16 @@ class DirectoryBruteforcer:
         self.lock = threading.Lock()
         self.progress = 0
         self.total_tasks = 0
+        self.scan_complete = False  
 
     def discover_directories(self, base_url, wordlist):
+        # Color definitions
+        BAR_COLOR = Fore.GREEN  # Progress bar color
+        TEXT_COLOR = Fore.CYAN  # Text color (percentage)
+        RESET = Style.RESET_ALL
+
         q = queue.Queue()
+
         
         with open(wordlist, 'r') as f:
             lines = [line.strip() for line in f]
@@ -536,9 +540,22 @@ class DirectoryBruteforcer:
             for line in lines:
                 q.put(line)
 
-        progress_thread = threading.Thread(target=self._update_progress, daemon=True)
+        
+        bar_format = (
+            f"{TEXT_COLOR}{{desc}}: {{percentage:3.0f}}%|"
+            f"{BAR_COLOR}{{bar}}{RESET}| "
+            f"{TEXT_COLOR}{{n_fmt}}/{{total_fmt}} [{{elapsed}}<{{remaining}}, {{rate_fmt}}]{RESET}"
+        )
+
+        
+        progress_thread = threading.Thread(
+            target=self._update_progress,
+            args=(bar_format,),
+            daemon=True
+        )
         progress_thread.start()
 
+        
         def worker():
             while not q.empty():
                 path = q.get()
@@ -549,7 +566,7 @@ class DirectoryBruteforcer:
                         with self.lock:
                             if url not in self.found:
                                 self.found.add(url)
-                                tqdm.write(f"[+] Found: {url}")  
+                                tqdm.write(f"{Fore.RED}[!] Found: {url}{RESET}")
                 except Exception as e:
                     pass
                 finally:
@@ -557,20 +574,79 @@ class DirectoryBruteforcer:
                         self.progress += 1
                     q.task_done()
 
+        
         for _ in range(self.max_threads):
             threading.Thread(target=worker, daemon=True).start()
 
+        
         q.join()
+        self.scan_complete = True 
+
+        
+        while progress_thread.is_alive():
+            time.sleep(0.1)
+
         return list(self.found)
 
-    def _update_progress(self):
-        with tqdm(total=self.total_tasks, desc="Scan Progress", position=0, leave=True) as pbar:
-            while self.progress < self.total_tasks:
+    def _update_progress(self, bar_format):
+        with tqdm(
+            total=self.total_tasks,
+            desc=f"{Fore.CYAN}Scan Progress{Style.RESET_ALL}",
+            bar_format=bar_format,
+            position=0,
+            leave=False,  # True/False to keep or remove the progress bar after resutls
+            ascii=" █",
+            dynamic_ncols=True
+        ) as pbar:
+            while self.progress < self.total_tasks and not self.scan_complete:
                 pbar.n = self.progress
                 pbar.refresh()
                 time.sleep(0.1)
             pbar.n = self.total_tasks
             pbar.refresh()
+
+# Asci art main
+def strip_ansi(line):
+    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
+    return ansi_escape.sub('', line)
+
+def center_text(text, padding_char=' '):
+    term_width = os.get_terminal_size().columns
+    lines = text.split('\n')
+    centered = []
+    
+    for line in lines:
+        stripped = strip_ansi(line)
+        padding = (term_width - len(stripped)) // 2
+        if padding > 0:
+            centered_line = padding_char * padding + line
+        else:
+            centered_line = line
+        centered.append(centered_line)
+    
+    return '\n'.join(centered)
+
+def show_banner():
+    banner = Fore.CYAN + r"""
+  /$$$$$$  /$$$$$$$   /$$$$$$  /$$$$$$$  /$$$$$$$$ /$$$$$$  /$$$$$$  /$$$$$$$$ /$$$$$$  /$$$$$$ 
+ /$$__  $$| $$__  $$ /$$__  $$| $$__  $$|__  $$__/|_  $$_/ /$$__  $$|__  $$__/|_  $$_/ /$$__  $$
+| $$  \__/| $$  \ $$| $$  \ $$| $$  \ $$   | $$     | $$  | $$  \ $$   | $$     | $$  | $$  \__/
+|  $$$$$$ | $$$$$$$/| $$$$$$$$| $$$$$$$/   | $$     | $$  | $$$$$$$$   | $$     | $$  |  $$$$$$ 
+ \____  $$| $$____/ | $$__  $$| $$__  $$   | $$     | $$  | $$__  $$   | $$     | $$   \____  $$
+ /$$  \ $$| $$      | $$  | $$| $$  \ $$   | $$     | $$  | $$  | $$   | $$     | $$   /$$  \ $$
+|  $$$$$$/| $$      | $$  | $$| $$  | $$   | $$    /$$$$$$| $$  | $$   | $$    /$$$$$$|  $$$$$$/
+ \______/ |__/      |__/  |__/|__/  |__/   |__/   |______/|__/  |__/   |__/   |______/ \______/ 
+
+                                                                                            
+    """ + Fore.YELLOW + "Spartiatis the Hellenic enumeration Pentest Toolkit" + Style.RESET_ALL
+    version = Fore.CYAN + "Version:" + Fore.RED + "1.0" + Style.RESET_ALL
+    authors = Fore.MAGENTA + "Homepage:" + Fore.YELLOW + "N/A.com" + Style.RESET_ALL
+    warning = Fore.RED + "WARNING: Use only on authorized systems!" + Style.RESET_ALL
+
+    print(center_text(banner))
+    print(center_text(version))
+    print(center_text(authors))
+    print(center_text(warning))
 
 if __name__ == "__main__":
     main()
