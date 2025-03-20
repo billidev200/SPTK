@@ -11,6 +11,7 @@ from urllib.parse import urljoin
 import os
 from colorama import Fore, Style, init
 from tqdm import tqdm 
+import dns.resolver
 init(autoreset=True)
 
 
@@ -23,7 +24,8 @@ def main():
         print(Fore.GREEN + "[3]" + Style.RESET_ALL + " Service Bruteforcer")
         print(Fore.GREEN + "[4]" + Style.RESET_ALL + " WAF Detector")
         print(Fore.GREEN + "[5]" + Style.RESET_ALL + " Web Directory Bruteforcer")
-        print(Fore.RED + "[6]" + Style.RESET_ALL + " Exit")
+        print(Fore.GREEN + "[6]" + Style.RESET_ALL + " Subdomain Bruteforcer")  
+        print(Fore.RED + "[7]" + Style.RESET_ALL + " Exit")  
         
         choice = input("\n" + Fore.YELLOW + "[+] Select an option: " + Style.RESET_ALL)
 
@@ -91,7 +93,7 @@ def main():
                 result = bruteforcer.telnet_bruteforce(target, username, wordlist)
             else:
                 print("Invalid service")
-                continue 
+                continue  
 
             if result:
                 print(f"Successful login: {result[0]}:{result[1]}")
@@ -166,10 +168,69 @@ def main():
             found = bruteforcer.discover_directories(url, wordlist)
             print(f"\nFound {len(found)} directories")
             input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
-
+            
         elif choice == '6':
+            while True:
+                domain = input("Enter target domain (e.g., example.com): ").strip()
+                cleaned_domain = domain.replace("http://", "").replace("https://", "").split("/")[0]
+                
+                if not re.match(
+                    r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z]{2,})+$",
+                    cleaned_domain
+                ):
+                    print(Fore.RED + "[!] Invalid URL format. Must include http:// or https://" + Style.RESET_ALL)
+                    continue
+                                
+                try:
+                    dns.resolver.resolve(cleaned_domain, 'A')
+                except dns.resolver.NXDOMAIN:
+                    print(Fore.YELLOW + "[!] Base domain doesn't resolve. Continue anyway? (y/n)" + Style.RESET_ALL)
+                    if input().lower() != 'y':
+                        continue
+                except dns.resolver.NoAnswer:
+                    print(Fore.YELLOW + "[!] No DNS records found. Continue anyway? (y/n)" + Style.RESET_ALL)
+                    if input().lower() != 'y':
+                        continue
+                except Exception as e:
+                    print(Fore.RED + f"[!] DNS resolution error: {str(e)}" + Style.RESET_ALL)
+                    continue
+                break
+
+            while True:
+                wordlist = input("Wordlist path: ").strip()
+                
+                
+                if not os.path.isfile(wordlist):
+                    print(Fore.RED + "[!] File not found" + Style.RESET_ALL)
+                    continue
+                
+                try:
+                    with open(wordlist, 'r') as f:
+                        lines = [line.strip() for line in f if line.strip()]
+                        if len(lines) < 5:
+                            print(Fore.RED + "[!] Wordlist should contain at least 5 entries" + Style.RESET_ALL)
+                            continue
+                            
+                        invalid_lines = [line for line in lines if not re.match(r"^[a-zA-Z0-9-]{1,63}$", line)]
+                        if invalid_lines:
+                            print(Fore.RED + f"[!] {len(invalid_lines)} invalid entries (max 63 chars, a-z, 0-9, hyphens)" + Style.RESET_ALL)
+                            continue
+                except UnicodeDecodeError:
+                    print(Fore.RED + "[!] Not a text file" + Style.RESET_ALL)
+                    continue
+                except Exception as e:
+                    print(Fore.RED + f"[!] File read error: {str(e)}" + Style.RESET_ALL)
+                    continue
+                break
+
+            bruteforcer = SubdomainBruteforcer()
+            found = bruteforcer.discover_subdomains(cleaned_domain, wordlist)
+            print(f"\nFound {len(found)} subdomains")
+            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+
+        elif choice == '7':  
             print("Exiting...")
-            break  
+            break
 
         else:
             print(Fore.RED + "[!] Invalid option, please try again")
@@ -179,7 +240,7 @@ def main():
 class PortScanner:
     def __init__(self):
         self.common_services = {
-            # Network Core Services
+        # Network Core Services
             21: 'FTP',
             22: 'SSH',
             23: 'Telnet',
@@ -256,7 +317,6 @@ class PortScanner:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(2)
                 s.connect((target, port))
-                
                 
                 if port == 80 or port == 443:
                     s.send(b"GET / HTTP/1.1\r\nHost: %s\r\n\r\n" % target.encode())
@@ -592,6 +652,99 @@ class DirectoryBruteforcer:
         with tqdm(
             total=self.total_tasks,
             desc=f"{Fore.CYAN}Scan Progress{Style.RESET_ALL}",
+            bar_format=bar_format,
+            position=0,
+            leave=False,  # True/False to keep or remove the progress bar after resutls
+            ascii=" █",
+            dynamic_ncols=True
+        ) as pbar:
+            while self.progress < self.total_tasks and not self.scan_complete:
+                pbar.n = self.progress
+                pbar.refresh()
+                time.sleep(0.1)
+            pbar.n = self.total_tasks
+            pbar.refresh()
+
+#Subdomain Bruteforcer
+class SubdomainBruteforcer:
+    def __init__(self, max_threads=10):
+        self.max_threads = max_threads
+        self.found = set()
+        self.lock = threading.Lock()
+        self.progress = 0
+        self.total_tasks = 0
+        self.scan_complete = False  
+
+    def discover_subdomains(self, domain, wordlist):
+        domain = domain.replace("http://", "").replace("https://", "").split("/")[0]
+
+        # Color definitions
+        BAR_COLOR = Fore.GREEN
+        TEXT_COLOR = Fore.CYAN
+        RESET = Style.RESET_ALL
+
+        q = queue.Queue()
+
+        with open(wordlist, 'r') as f:
+            lines = [line.strip().rstrip('.') for line in f if line.strip()]
+            self.total_tasks = len(lines)
+            for line in lines:
+                q.put(line)
+
+        
+        bar_format = (
+            f"{TEXT_COLOR}{{desc}}: {{percentage:3.0f}}%|"
+            f"{BAR_COLOR}{{bar}}{RESET}| "
+            f"{TEXT_COLOR}{{n_fmt}}/{{total_fmt}} [{{elapsed}}<{{remaining}}, {{rate_fmt}}]{RESET}"
+        )
+
+       
+        progress_thread = threading.Thread(
+            target=self._update_progress,
+            args=(bar_format,),
+            daemon=True
+        )
+        progress_thread.start()
+
+        
+        def worker():
+            while not q.empty():
+                sub = q.get()
+                full_domain = f"{sub}.{domain}"
+                try:
+                    answers = dns.resolver.resolve(full_domain, 'A')
+                    if answers:
+                        with self.lock:
+                            if full_domain not in self.found:
+                                self.found.add(full_domain)
+                                tqdm.write(f"{Fore.RED}[!] Found: {Fore.YELLOW}{full_domain}{RESET}")
+                except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+                    pass
+                except Exception as e:
+                    pass
+                finally:
+                    with self.lock:
+                        self.progress += 1
+                    q.task_done()
+
+        
+        for _ in range(self.max_threads):
+            threading.Thread(target=worker, daemon=True).start()
+
+        
+        q.join()
+        self.scan_complete = True  
+
+     
+        while progress_thread.is_alive():
+            time.sleep(0.1)
+
+        return list(self.found)
+
+    def _update_progress(self, bar_format):
+        with tqdm(
+            total=self.total_tasks,
+            desc=f"{Fore.CYAN}Subdomain Scan{Style.RESET_ALL}",
             bar_format=bar_format,
             position=0,
             leave=False,  # True/False to keep or remove the progress bar after resutls
