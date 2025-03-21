@@ -30,26 +30,35 @@ def main():
         choice = input("\n" + Fore.YELLOW + "[+] Select an option: " + Style.RESET_ALL)
 
         if choice == '1':
-            target = input("Enter target IP: ")
             while True:
+                target = input("Enter target IP: ").strip()
+                if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", target):
+                    print(Fore.RED + "[!] Invalid IP address format" + Style.RESET_ALL)
+                    continue
                 try:
                     start_port = int(input("Enter start port [1-65535]: "))
                     end_port = int(input("Enter end port [1-65535]: "))
-                    if 1 <= start_port <= 65535 and 1 <= end_port <= 65535 and start_port <= end_port:
-                        break
-                    print(Fore.RED + "[!] Invalid port range. Start port must be <= end port [1-65535]")
+                    if not (1 <= start_port <= 65535 and 1 <= end_port <= 65535):
+                        raise ValueError
+                    if start_port > end_port:
+                        print(Fore.RED + "[!] Start port must be <= end port" + Style.RESET_ALL)
+                        continue
                 except ValueError:
-                    print(Fore.RED + "[!] Please enter valid numbers")
-            ports = range(start_port, end_port+1)
-            scanner = PortScanner()
-            results = scanner.scan_ports(target, ports)
-            print(Fore.RED + "\n[!] Scan Results:\n")
-            print("Port\tStatus\tService\t\tBanner")
-            print("─────\t──────\t───────\t\t──────")
-            for port, status, service, banner in results:
-                print(f"{port}\t{Fore.GREEN + status}\t{Fore.YELLOW + service.ljust(8)}\t{Fore.RED + banner[:50]}")
-            
-            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+                    print(Fore.RED + "[!] Invalid port numbers" + Style.RESET_ALL)
+                    continue
+                
+                ports = range(start_port, end_port + 1)
+                scanner = PortScanner()
+                results = scanner.scan_ports(target, ports)
+                
+                print(Fore.RED + "\n[!] Scan Results:\n")
+                print("Port\tStatus\tService\t\tBanner")
+                print("-----\t------\t-------\t\t------")
+                for port, status, service, banner in results:
+                    print(f"{Fore.WHITE}{port:<8}{Fore.GREEN}{status:<10}{Fore.YELLOW}{service.ljust(15)}{Fore.CYAN}{banner[:50]}")
+                
+                input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
+                break
 
         elif choice == '2':
             while True:
@@ -311,6 +320,26 @@ class PortScanner:
             8291: 'Winbox',
             10000: 'Webmin'
         }
+        self.lock = threading.Lock()
+        self.progress = 0
+        self.total_tasks = 0
+
+    def _update_progress(self, bar_format):
+        with tqdm(
+            total=self.total_tasks,
+            desc=f"{Fore.CYAN}Port Scan Progress{Style.RESET_ALL}",
+            bar_format=bar_format,
+            position=0,
+            leave=False,  # True/False to keep or remove the progress bar after resutls
+            ascii=" █",
+            dynamic_ncols=True
+        ) as pbar:
+            self.pbar = pbar
+            while self.progress < self.total_tasks and not self.scan_complete:
+                pbar.n = self.progress
+                pbar.refresh()
+                time.sleep(0.1)
+            pbar.close()
 
     def get_service_banner(self, target, port):
         try:
@@ -349,25 +378,58 @@ class PortScanner:
         return None
 
     def scan_ports(self, target, ports, max_threads=100):
+        self.scan_complete = False
         results = []
         q = queue.Queue()
-        print(f"Scanning {target}...")
+        self.total_tasks = len(ports)
+        self.progress = 0
+
+        
+        BAR_COLOR = Fore.BLUE
+        TEXT_COLOR = Fore.CYAN
+        RESET = Style.RESET_ALL
+        
+        bar_format = (
+            f"{TEXT_COLOR}{{desc}}: {{percentage:3.0f}}%|"
+            f"{BAR_COLOR}{{bar}}{RESET}| "
+            f"{TEXT_COLOR}{{n_fmt}}/{{total_fmt}} [{{elapsed}}<{{remaining}}, {{rate_fmt}}]{RESET}"
+        )
+
+        
+        progress_thread = threading.Thread(
+            target=self._update_progress,
+            args=(bar_format,),
+            daemon=True
+        )
+        progress_thread.start()
 
         def worker():
             while not q.empty():
                 port = q.get()
                 result = self.scan_port(target, port)
                 if result:
-                    results.append(result)
+                    with self.lock:
+                        results.append(result)
+                with self.lock:
+                    self.progress += 1
                 q.task_done()
 
+        
         for port in ports:
             q.put(port)
 
+       
         for _ in range(max_threads):
             threading.Thread(target=worker, daemon=True).start()
 
         q.join()
+        self.scan_complete = True  
+        
+        
+        while progress_thread.is_alive():
+            time.sleep(0.1)
+        
+        
         return sorted(results, key=lambda x: x[0])
 
 # Vulnerability Scanner 
@@ -691,14 +753,12 @@ class SubdomainBruteforcer:
             for line in lines:
                 q.put(line)
 
-        
         bar_format = (
             f"{TEXT_COLOR}{{desc}}: {{percentage:3.0f}}%|"
             f"{BAR_COLOR}{{bar}}{RESET}| "
             f"{TEXT_COLOR}{{n_fmt}}/{{total_fmt}} [{{elapsed}}<{{remaining}}, {{rate_fmt}}]{RESET}"
         )
 
-       
         progress_thread = threading.Thread(
             target=self._update_progress,
             args=(bar_format,),
@@ -706,7 +766,7 @@ class SubdomainBruteforcer:
         )
         progress_thread.start()
 
-        
+
         def worker():
             while not q.empty():
                 sub = q.get()
@@ -727,15 +787,13 @@ class SubdomainBruteforcer:
                         self.progress += 1
                     q.task_done()
 
-        
+
         for _ in range(self.max_threads):
             threading.Thread(target=worker, daemon=True).start()
 
-        
         q.join()
         self.scan_complete = True  
 
-     
         while progress_thread.is_alive():
             time.sleep(0.1)
 
