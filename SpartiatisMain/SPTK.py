@@ -110,7 +110,7 @@ def main():
                 print("Bruteforce failed")
             
             input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
-
+            
         elif choice == '4':
             while True:
                 url = input("Enter URL (e.g., http://example.com): ").strip()
@@ -259,10 +259,14 @@ class PortScanner:
             80: 'HTTP',
             110: 'POP3',
             123: 'NTP',
+            137: 'NetBIOS-NS',
+            138: 'NetBIOS-DGM',
+            139: 'NetBIOS-SSN',
             143: 'IMAP',
             161: 'SNMP',
             389: 'LDAP',
             443: 'HTTPS',
+            111: 'RPC',
             445: 'SMB',
             465: 'SMTPS',
             514: 'Syslog',
@@ -436,14 +440,161 @@ class PortScanner:
 class VulnerabilityScanner:
     def basic_checks(self, open_ports):
         vulnerabilities = []
-        for port, status, service, banner in open_ports:  
+        for port, status, service, banner in open_ports:
             if service == 'FTP' and port == 21:
                 vulnerabilities.append("Potential FTP anonymous login")
+                if "vsFTPd" in banner and "2.3.4" in banner:
+                    vulnerabilities.append("Critical: vsFTPd 2.3.4 backdoor vulnerability (CVE-2011-2523)")
             elif service == 'SSH' and port == 22:
                 vulnerabilities.append("Check for outdated SSH versions")
+                if "OpenSSH" in banner and ("7.4" in banner or "7.6" in banner):
+                    vulnerabilities.append("Potential outdated OpenSSH version (check for CVE-2021-41617)")
             elif service == 'HTTP' and port == 80:
                 vulnerabilities.append("Check for common web vulnerabilities")
-        return vulnerabilities
+                if "Apache/2.4.49" in banner or "Apache/2.4.50" in banner:
+                    vulnerabilities.append("Critical: Apache Path Traversal (CVE-2021-41773)")
+            
+            # 1. HTTP Server Header Disclosure
+            if service in ['HTTP', 'HTTPS']:
+                if "Server: " in banner:
+                    server_header = banner.split("Server: ")[1].split("\r\n")[0]
+                    vulnerabilities.append(f"Server header disclosure: {server_header}")
+                    if "Apache/2.2." in server_header:
+                        vulnerabilities.append("Outdated Apache version (2.2.x EOL)")
+
+            # 2. SSL/TLS Basic Check
+            if service == 'HTTPS' and port == 443:
+                if "SSLv3" in banner or "TLSv1.0" in banner:
+                    vulnerabilities.append("Deprecated SSL/TLS version detected")
+
+            # 3. PHP Version Disclosure
+            if "PHP/" in banner:
+                php_version = banner.split("PHP/")[1].split(" ")[0]
+                if php_version.startswith(('5.', '7.0', '7.1')):
+                    vulnerabilities.append(f"Outdated PHP version ({php_version})")
+
+            # 4. Tomcat Default Pages
+            if service == 'HTTP' and "Apache-Coyote" in banner:
+                vulnerabilities.append("Apache Tomcat detected - check for default pages")
+
+            # 5. SMB Protocol Check
+            if port == 445:
+                vulnerabilities.append("SMB port open - check for SMBv1 vulnerability")
+
+            # 6. DNS Zone Transfer
+            if port == 53:
+                vulnerabilities.append("DNS port open - check for zone transfer vulnerability")
+
+            # 7. MySQL Empty Password
+            if service == 'MySQL' and port == 3306:
+                vulnerabilities.append("Check for MySQL empty root password")
+
+            # 8. RDP Security
+            if port == 3389:
+                vulnerabilities.append("RDP exposed - check Network Level Authentication")
+
+            # 9. SNMP Default Community Strings
+            if port == 161:
+                vulnerabilities.append("SNMP open - check for default community strings")
+
+            # 10. Web Framework Default Credentials
+            if service == 'HTTP':
+                if "WordPress" in banner:
+                    vulnerabilities.append("WordPress detected - check default admin credentials")
+                elif "Jenkins" in banner:
+                    vulnerabilities.append("Jenkins detected - check anonymous access")
+
+            # 11. Elasticsearch Exposure
+            if service == 'Elasticsearch' and port == 9200:
+                vulnerabilities.append("Elasticsearch exposed - check for unauthenticated access (CVE-2015-1427)")
+            
+            # 12. Redis Unauthenticated Access
+            if service == 'Redis' and port == 6379:
+                vulnerabilities.append("Redis exposed - unauthenticated access could allow data manipulation")
+            
+            # 13. MongoDB Default Configuration
+            if service == 'MongoDB' and port == 27017:
+                vulnerabilities.append("MongoDB exposed - check for default authentication configuration")
+            
+            # 14. Docker API Exposure
+            if service == 'Docker' and port in [2375, 2376]:
+                vulnerabilities.append("Docker API exposed - unsecured daemon could allow container takeover")
+            
+            # 15. Jenkins RCE
+            if "Jenkins" in banner and service == 'HTTP':
+                vulnerabilities.append("Jenkins detected - check for:")
+                vulnerabilities.append("  - Unauthenticated script console (CVE-2018-1999002)")
+                vulnerabilities.append("  - Arbitrary file read vulnerability (CVE-2024-23897)")
+            
+            # 16. WebLogic Vulnerabilities
+            if "WebLogic" in banner and port == 7001:
+                vulnerabilities.append("Oracle WebLogic detected - check for:")
+                vulnerabilities.append("  - Unauthenticated RCE (CVE-2020-14882)")
+                vulnerabilities.append("  - XMLDecoder deserialization (CVE-2017-10271)")
+            
+            # 17. Nginx Vulnerabilities
+            if "nginx" in banner.lower():
+                if "1.16.0" in banner:
+                    vulnerabilities.append("Nginx 1.16.0 vulnerable to directory traversal (CVE-2019-20372)")
+            
+            # 18. PHP-FPM Exposure
+            if service == 'PHP-FPM' and port == 9000:
+                vulnerabilities.append("PHP-FPM exposed - potential RCE if misconfigured with Nginx")
+            
+            # 19. Memcached Amplification
+            if service == 'Memcached' and port == 11211:
+                vulnerabilities.append("Memcached exposed - UDP amplification attack vector")
+            
+            # 20. VNC Authentication
+            if service == 'VNC' and port == 5900:
+                vulnerabilities.append("VNC exposed - check for authentication bypass (CVE-2023-32560)")
+            
+            # 21. RDP BlueKeep
+            if service == 'RDP' and "Microsoft Terminal Services" in banner:
+                if "8.1.7601" in banner or "10.0.10240" in banner:
+                    vulnerabilities.append("RDP vulnerable to BlueKeep (CVE-2019-0708)")
+            
+            # 22. SSL Heartbleed
+            if "OpenSSL/1.0.1" in banner and "f" not in banner.split("OpenSSL/1.0.1")[1][:2]:
+                vulnerabilities.append("OpenSSL vulnerable to Heartbleed (CVE-2014-0160)")
+            
+            # 23. Apache Struts RCE
+            if "Apache Struts" in banner:
+                if "2.3.5" in banner or "2.3.31" in banner or "2.5.10" in banner:
+                    vulnerabilities.append("Apache Struts RCE vulnerability (CVE-2017-5638)")
+            
+            # 24. IIS Buffer Overflow
+            if "Microsoft-IIS" in banner:
+                if "6.0" in banner:
+                    vulnerabilities.append("IIS 6.0 vulnerable to buffer overflow (CVE-2017-7269)")
+            
+            # 25. WebDAV Misconfiguration
+            if "Microsoft-HTTPAPI" in banner and "WebDAV" in banner:
+                vulnerabilities.append("WebDAV enabled - check for PUT method vulnerabilities")
+            if service in ['NetBIOS-NS', 'NetBIOS-DGM', 'NetBIOS-SSN']:
+                vulnerabilities.append("NetBIOS service exposed (ports 137-139) - check for:")
+                vulnerabilities.append("  - Null session vulnerabilities (CVE-1999-0519)")
+                vulnerabilities.append("  - SMBv1 vulnerabilities (MS17-010/EternalBlue)")
+                vulnerabilities.append("  - Unauthenticated share enumeration")
+                vulnerabilities.append("  - Zone transfer attacks")
+                
+            # SMB-specific checks (port 445)
+            if service == 'SMB' and port == 445:
+                vulnerabilities.append("SMB port exposed - check for:")
+                vulnerabilities.append("  - SMBv1 protocol usage (CVE-2017-0143-0148)")
+                vulnerabilities.append("  - EternalBlue exploit potential (MS17-010)")
+                vulnerabilities.append("  - Unauthenticated access to shares")
+                if "Samba" in banner:
+                    vulnerabilities.append("  - Check for SambaCry (CVE-2017-7494)")
+                
+            # Additional NetBIOS-related checks
+            if port == 137 and "NetBIOS" in banner:
+                vulnerabilities.append("NetBIOS Name Service exposed - possible hostname enumeration")
+                
+            if port == 139 and "SMB" in banner:
+                vulnerabilities.append("NetBIOS Session Service running - check for legacy SMB configurations")
+
+        return list(set(vulnerabilities))
 
 #Service BruteForcer 
 class BruteForcer:
@@ -766,7 +917,6 @@ class SubdomainBruteforcer:
         )
         progress_thread.start()
 
-
         def worker():
             while not q.empty():
                 sub = q.get()
@@ -787,12 +937,11 @@ class SubdomainBruteforcer:
                         self.progress += 1
                     q.task_done()
 
-
         for _ in range(self.max_threads):
             threading.Thread(target=worker, daemon=True).start()
 
         q.join()
-        self.scan_complete = True  
+        self.scan_complete = True 
 
         while progress_thread.is_alive():
             time.sleep(0.1)
