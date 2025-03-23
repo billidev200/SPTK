@@ -16,8 +16,12 @@ init(autoreset=True)
 
 
 # Main Menu 
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
 def main():
     while True:
+        clear_screen() 
         show_banner()  
         print(Fore.GREEN + "[1]" + Style.RESET_ALL + " Port Scanner")
         print(Fore.GREEN + "[2]" + Style.RESET_ALL + " Vulnerability Scanner")
@@ -110,7 +114,7 @@ def main():
                 print("Bruteforce failed")
             
             input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
-            
+
         elif choice == '4':
             while True:
                 url = input("Enter URL (e.g., http://example.com): ").strip()
@@ -571,6 +575,7 @@ class VulnerabilityScanner:
             # 25. WebDAV Misconfiguration
             if "Microsoft-HTTPAPI" in banner and "WebDAV" in banner:
                 vulnerabilities.append("WebDAV enabled - check for PUT method vulnerabilities")
+            # NetBIOS Vulnerability Checks
             if service in ['NetBIOS-NS', 'NetBIOS-DGM', 'NetBIOS-SSN']:
                 vulnerabilities.append("NetBIOS service exposed (ports 137-139) - check for:")
                 vulnerabilities.append("  - Null session vulnerabilities (CVE-1999-0519)")
@@ -889,6 +894,7 @@ class SubdomainBruteforcer:
         self.scan_complete = False  
 
     def discover_subdomains(self, domain, wordlist):
+        
         domain = domain.replace("http://", "").replace("https://", "").split("/")[0]
 
         # Color definitions
@@ -904,12 +910,14 @@ class SubdomainBruteforcer:
             for line in lines:
                 q.put(line)
 
+        
         bar_format = (
             f"{TEXT_COLOR}{{desc}}: {{percentage:3.0f}}%|"
             f"{BAR_COLOR}{{bar}}{RESET}| "
             f"{TEXT_COLOR}{{n_fmt}}/{{total_fmt}} [{{elapsed}}<{{remaining}}, {{rate_fmt}}]{RESET}"
         )
 
+        
         progress_thread = threading.Thread(
             target=self._update_progress,
             args=(bar_format,),
@@ -917,6 +925,7 @@ class SubdomainBruteforcer:
         )
         progress_thread.start()
 
+        
         def worker():
             while not q.empty():
                 sub = q.get()
@@ -937,12 +946,15 @@ class SubdomainBruteforcer:
                         self.progress += 1
                     q.task_done()
 
+        
         for _ in range(self.max_threads):
             threading.Thread(target=worker, daemon=True).start()
 
+        
         q.join()
-        self.scan_complete = True 
+        self.scan_complete = True  
 
+        
         while progress_thread.is_alive():
             time.sleep(0.1)
 
