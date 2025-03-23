@@ -71,19 +71,46 @@ def main():
                     print(Fore.RED + "[!] Invalid IP address format" + Style.RESET_ALL)
                     continue
                 try:
-                    
                     octets = list(map(int, target.split('.')))
                     if not all(0 <= octet <= 255 for octet in octets):
                         raise ValueError
-                except (ValueError, AttributeError):
+                except:
                     print(Fore.RED + "[!] Invalid IP address values" + Style.RESET_ALL)
                     continue
                 break
 
+            while True:
+                print("\nPort Range Options:")
+                print(f"{Fore.CYAN}[1]{Style.RESET_ALL} Default (1-1024)")
+                print(f"{Fore.CYAN}[2]{Style.RESET_ALL} Full range (1-65535)")
+                print(f"{Fore.CYAN}[3]{Style.RESET_ALL} Custom range")
+                range_choice = input(Fore.YELLOW + "\nSelect port range: " + Style.RESET_ALL)
+
+                try:
+                    if range_choice == '1':
+                        ports = range(1, 1025)
+                    elif range_choice == '2':
+                        ports = range(1, 65536)
+                    elif range_choice == '3':
+                        start = int(input("Start port (1-65535): "))
+                        end = int(input("End port (1-65535): "))
+                        if not (1 <= start <= 65535 and 1 <= end <= 65535):
+                            raise ValueError
+                        if start > end:
+                            print(Fore.RED + "[!] Start port must be <= end port" + Style.RESET_ALL)
+                            continue
+                        ports = range(start, end+1)
+                    else:
+                        raise ValueError
+                    break
+                except ValueError:
+                    print(Fore.RED + "[!] Invalid selection" + Style.RESET_ALL)
+                    continue
+
             port_scanner = PortScanner()
-            ports = port_scanner.scan_ports(target, range(1, 1025))
+            scanned_ports = port_scanner.scan_ports(target, ports)
             vuln_scanner = VulnerabilityScanner()
-            vulnerabilities = vuln_scanner.basic_checks(ports)
+            vulnerabilities = vuln_scanner.basic_checks(scanned_ports)
             
             print(Fore.RED + "\n[!] Potential vulnerabilities")
             for vuln in vulnerabilities:
@@ -741,7 +768,7 @@ class BruteForcer:
             self.scan_complete = True
             if progress_thread and progress_thread.is_alive():
                 progress_thread.join(timeout=1)
-            print("\033[2K\r", end="")  # Clear progress bar line
+            print("\033[2K\r", end="")
 
     def ftp_bruteforce(self, target, username_or_wordlist, password_wordlist, port=21, timeout=5):
         progress_thread = None
@@ -793,7 +820,7 @@ class BruteForcer:
             self.scan_complete = True
             if progress_thread and progress_thread.is_alive():
                 progress_thread.join(timeout=1)
-            print("\033[2K\r", end="")  # Clear progress bar line
+            print("\033[2K\r", end="")  
 
     def telnet_bruteforce(self, target, username_or_wordlist, password_wordlist, port=23, timeout=5):
         progress_thread = None
@@ -855,9 +882,8 @@ class BruteForcer:
             self.scan_complete = True
             if progress_thread and progress_thread.is_alive():
                 progress_thread.join(timeout=1)
-            print("\033[2K\r", end="")  
+            print("\033[2K\r", end="")
   
-
 # WAF Scanner 
 class WafScanner:
     def __init__(self):
