@@ -28,8 +28,9 @@ def main():
         print(Fore.GREEN + "[3]" + Style.RESET_ALL + " Service Bruteforcer")
         print(Fore.GREEN + "[4]" + Style.RESET_ALL + " WAF Detector")
         print(Fore.GREEN + "[5]" + Style.RESET_ALL + " Web Directory Bruteforcer")
-        print(Fore.GREEN + "[6]" + Style.RESET_ALL + " Subdomain Bruteforcer")  
-        print(Fore.RED + "[7]" + Style.RESET_ALL + " Exit")  
+        print(Fore.GREEN + "[6]" + Style.RESET_ALL + " Subdomain Bruteforcer")
+        print(Fore.GREEN + "[8]" + Style.RESET_ALL + " CMS Detector")
+        print(Fore.RED + "[9]" + Style.RESET_ALL + " Exit")  
         
         choice = input("\n" + Fore.YELLOW + "[+] Select an option: " + Style.RESET_ALL)
 
@@ -278,8 +279,34 @@ def main():
             found = bruteforcer.discover_subdomains(cleaned_domain, wordlist)
             print(f"\nFound {len(found)} subdomains")
             input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+        
+        elif choice == '8':
+            while True:
+                url = input("Enter website URL (e.g., http://example.com): ").strip()
+                if not re.match(r'^https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', url):
+                    print(Fore.RED + "[!] Invalid URL format. Must include http:// or https://" + Style.RESET_ALL)
+                    continue
+                break
+            
+            cms_detector = CMSDetector()
+            with tqdm(total=len(cms_detector.cms_signatures), 
+                    desc=f"{Fore.CYAN}Scanning for CMS{Style.RESET_ALL}",
+                    bar_format="{l_bar}{bar:50}{r_bar}") as pbar:
+                
+                cms_list, version = cms_detector.detect_cms(url)
+                pbar.update(len(cms_detector.cms_signatures))
+            
+            if cms_list:
+                print(f"\n{Fore.GREEN}[+] Detected CMS:{Style.RESET_ALL}")
+                for cms in cms_list:
+                    ver_info = f" ({version})" if version and cms in ['WordPress','Joomla','Drupal'] else ""
+                    print(f"{Fore.YELLOW}- {cms}{ver_info}{Style.RESET_ALL}")
+            else:
+                print(f"\n{Fore.RED}[!] No known CMS detected{Style.RESET_ALL}")
+            
+            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
 
-        elif choice == '7':  
+        elif choice == '9':  
             print("Exiting...")
             break
 
@@ -483,6 +510,7 @@ class VulnerabilityScanner:
     def basic_checks(self, open_ports):
         vulnerabilities = []
         for port, status, service, banner in open_ports:
+            # Existing checks
             if service == 'FTP' and port == 21:
                 vulnerabilities.append("Potential FTP anonymous login")
                 if "vsFTPd" in banner and "2.3.4" in banner:
@@ -496,6 +524,7 @@ class VulnerabilityScanner:
                 if "Apache/2.4.49" in banner or "Apache/2.4.50" in banner:
                     vulnerabilities.append("Critical: Apache Path Traversal (CVE-2021-41773)")
             
+            # New vulnerability checks
             # 1. HTTP Server Header Disclosure
             if service in ['HTTP', 'HTTPS']:
                 if "Server: " in banner:
@@ -820,7 +849,7 @@ class BruteForcer:
             self.scan_complete = True
             if progress_thread and progress_thread.is_alive():
                 progress_thread.join(timeout=1)
-            print("\033[2K\r", end="")  
+            print("\033[2K\r", end="")
 
     def telnet_bruteforce(self, target, username_or_wordlist, password_wordlist, port=23, timeout=5):
         progress_thread = None
@@ -882,8 +911,8 @@ class BruteForcer:
             self.scan_complete = True
             if progress_thread and progress_thread.is_alive():
                 progress_thread.join(timeout=1)
-            print("\033[2K\r", end="")
-  
+            print("\033[2K\r", end="")  
+
 # WAF Scanner 
 class WafScanner:
     def __init__(self):
@@ -1207,6 +1236,99 @@ class SubdomainBruteforcer:
                 time.sleep(0.1)
             pbar.n = self.total_tasks
             pbar.refresh()
+
+#CMS Detector
+class CMSDetector:
+    def __init__(self):
+        self.cms_signatures = {
+            'WordPress': {
+                'patterns': [
+                    r'<meta name="generator" content="WordPress',
+                    r'/wp-content/',
+                    r'/wp-includes/',
+                    r'wp-json'
+                ],
+                'files': ['wp-login.php', 'wp-admin/readme.html']
+            },
+            'Joomla': {
+                'patterns': [
+                    r'<meta name="generator" content="Joomla',
+                    r'/media/system/js/',
+                    r'/components/com_'
+                ],
+                'files': ['administrator/', 'joomla.inc.php']
+            },
+            'Drupal': {
+                'patterns': [
+                    r'<meta name="Generator" content="Drupal',
+                    r'sites/all/modules/',
+                    r'drupal.js'
+                ],
+                'files': ['CHANGELOG.txt', 'core/misc/drupal.js']
+            },
+            'Magento': {
+                'patterns': [
+                    r'Magento',
+                    r'var Mage =',
+                    r'/skin/frontend/'
+                ],
+                'files': ['js/mage/', 'app/Mage.php']
+            },
+            'Shopify': {
+                'patterns': [
+                    r'shopify-checkout-button',
+                    r'shopify-analytics'
+                ],
+                'headers': ['x-shopid', 'x-shopify-stage']
+            }
+        }
+
+    def detect_cms(self, url):
+        try:
+            session = requests.Session()
+            response = session.get(url, timeout=10, verify=False)
+            content = response.text
+            headers = response.headers
+            
+            detected = []
+            
+            for cms, data in self.cms_signatures.items():
+                if any(re.search(pattern, content, re.IGNORECASE) for pattern in data.get('patterns', [])):
+                    detected.append(cms)
+                
+                if any(header.lower() in (h.lower() for h in headers.keys()) 
+                       for header in data.get('headers', [])):
+                    detected.append(cms)
+            
+            for cms, data in self.cms_signatures.items():
+                for file_path in data.get('files', []):
+                    try:
+                        file_url = urljoin(url, file_path)
+                        file_response = session.head(file_path, timeout=5)
+                        if file_response.status_code == 200:
+                            detected.append(cms)
+                    except:
+                        continue
+            
+            version = self._get_cms_version(content, detected)
+            
+            return list(set(detected)), version
+        except Exception as e:
+            return [], None
+
+    def _get_cms_version(self, content, detected_cms):
+        version_patterns = {
+            'WordPress': r'content="WordPress (\d+\.\d+\.\d+)',
+            'Joomla': r'content="Joomla! (\d+\.\d+)',
+            'Drupal': r'content="Drupal (\d+) \((\d+\.\d+\.\d+)\)'
+        }
+        
+        for cms in detected_cms:
+            if cms in version_patterns:
+                match = re.search(version_patterns[cms], content)
+                if match:
+                    return match.group(1)
+        return None
 
 # Asci art main
 def strip_ansi(line):
