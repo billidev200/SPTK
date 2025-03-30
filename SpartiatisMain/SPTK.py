@@ -12,8 +12,18 @@ import os
 from colorama import Fore, Style, init
 from tqdm import tqdm 
 import dns.resolver
+import sys
 init(autoreset=True)
 
+
+
+#Exit Shortcut
+def get_input(prompt):
+    user_input = input(prompt).strip()
+    if user_input.lower() in ('exit'):
+        print(Fore.RED + "\nExiting..." + Style.RESET_ALL)
+        sys.exit(0)
+    return user_input
 
 # Main Menu 
 def clear_screen():
@@ -32,17 +42,17 @@ def main():
         print(Fore.GREEN + "[8]" + Style.RESET_ALL + " CMS Detector")
         print(Fore.RED + "[9]" + Style.RESET_ALL + " Exit")  
         
-        choice = input("\n" + Fore.YELLOW + "[+] Select an option: " + Style.RESET_ALL)
+        choice = get_input("\n" + Fore.YELLOW + "[+] Select an option: " + Style.RESET_ALL)
 
         if choice == '1':
             while True:
-                target = input("Enter target IP: ").strip()
+                target = get_input("Enter target IP: ").strip()
                 if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", target):
                     print(Fore.RED + "[!] Invalid IP address format" + Style.RESET_ALL)
                     continue
                 try:
-                    start_port = int(input("Enter start port [1-65535]: "))
-                    end_port = int(input("Enter end port [1-65535]: "))
+                    start_port = int(get_input("Enter start port [1-65535]: "))
+                    end_port = int(get_input("Enter end port [1-65535]: "))
                     if not (1 <= start_port <= 65535 and 1 <= end_port <= 65535):
                         raise ValueError
                     if start_port > end_port:
@@ -62,12 +72,12 @@ def main():
                 for port, status, service, banner in results:
                     print(f"{Fore.WHITE}{port:<8}{Fore.GREEN}{status:<10}{Fore.YELLOW}{service.ljust(15)}{Fore.CYAN}{banner[:50]}")
                 
-                input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
+                get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
                 break
 
         elif choice == '2':
             while True:
-                target = input("Enter target IP: ").strip()
+                target = get_input("Enter target IP: ").strip()
                 if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", target):
                     print(Fore.RED + "[!] Invalid IP address format" + Style.RESET_ALL)
                     continue
@@ -85,7 +95,7 @@ def main():
                 print(f"{Fore.CYAN}[1]{Style.RESET_ALL} Default (1-1024)")
                 print(f"{Fore.CYAN}[2]{Style.RESET_ALL} Full range (1-65535)")
                 print(f"{Fore.CYAN}[3]{Style.RESET_ALL} Custom range")
-                range_choice = input(Fore.YELLOW + "\nSelect port range: " + Style.RESET_ALL)
+                range_choice = get_input(Fore.YELLOW + "\nSelect port range: " + Style.RESET_ALL)
 
                 try:
                     if range_choice == '1':
@@ -93,8 +103,8 @@ def main():
                     elif range_choice == '2':
                         ports = range(1, 65536)
                     elif range_choice == '3':
-                        start = int(input("Start port (1-65535): "))
-                        end = int(input("End port (1-65535): "))
+                        start = int(get_input("Start port (1-65535): "))
+                        end = int(get_input("End port (1-65535): "))
                         if not (1 <= start <= 65535 and 1 <= end <= 65535):
                             raise ValueError
                         if start > end:
@@ -117,7 +127,7 @@ def main():
             for vuln in vulnerabilities:
                 print(Fore.RED + f"{vuln}" + Style.RESET_ALL)
             
-            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
 
         elif choice == '3':
             bruteforcer = BruteForcer()
@@ -152,11 +162,11 @@ def main():
             else:
                 print(Fore.RED + "[!] Bruteforce failed." + Style.RESET_ALL)
 
-            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
+            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
 
         elif choice == '4':
             while True:
-                url = input("Enter URL (e.g., http://example.com): ").strip()
+                url = get_input("Enter URL (e.g., http://example.com): ").strip()
                 if not re.match(r'^https?://([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(/.*)?$', url):
                     print(Fore.RED + "[!] Invalid URL format. Must include http:// or https:// and valid domain" + Style.RESET_ALL)
                     continue
@@ -175,11 +185,11 @@ def main():
             result = waf_scanner.detect_waf(url)
             print(Fore.YELLOW + f"WAF Detection Result: {result}" + Style.RESET_ALL)
             
-            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
 
         elif choice == '5':
             while True:
-                url = input("Enter base URL (e.g., http://example.com): ").strip()
+                url = get_input("Enter base URL (e.g., http://example.com): ").strip()
                 if not re.match(r'^https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', url):
                     print(Fore.RED + "[!] Invalid URL format. Must include http:// or https://" + Style.RESET_ALL)
                     continue
@@ -198,7 +208,7 @@ def main():
                 break
 
             while True:
-                wordlist = input("Wordlist path: ").strip()
+                wordlist = get_input("Wordlist path: ").strip()
                 if not os.path.isfile(wordlist):
                     print(Fore.RED + "[!] File does not exist" + Style.RESET_ALL)
                     continue
@@ -219,11 +229,11 @@ def main():
             bruteforcer = DirectoryBruteforcer()
             found = bruteforcer.discover_directories(url, wordlist)
             print(f"\nFound {len(found)} directories")
-            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
             
         elif choice == '6':
             while True:
-                domain = input("Enter target domain (e.g., example.com): ").strip()
+                domain = get_input("Enter target domain (e.g., example.com): ").strip()
                 cleaned_domain = domain.replace("http://", "").replace("https://", "").split("/")[0]
                 
                 if not re.match(
@@ -237,11 +247,11 @@ def main():
                     dns.resolver.resolve(cleaned_domain, 'A')
                 except dns.resolver.NXDOMAIN:
                     print(Fore.YELLOW + "[!] Base domain doesn't resolve. Continue anyway? (y/n)" + Style.RESET_ALL)
-                    if input().lower() != 'y':
+                    if get_input().lower() != 'y':
                         continue
                 except dns.resolver.NoAnswer:
                     print(Fore.YELLOW + "[!] No DNS records found. Continue anyway? (y/n)" + Style.RESET_ALL)
-                    if input().lower() != 'y':
+                    if get_input().lower() != 'y':
                         continue
                 except Exception as e:
                     print(Fore.RED + f"[!] DNS resolution error: {str(e)}" + Style.RESET_ALL)
@@ -249,7 +259,7 @@ def main():
                 break
 
             while True:
-                wordlist = input("Wordlist path: ").strip()
+                wordlist = get_input("Wordlist path: ").strip()
                 
                 
                 if not os.path.isfile(wordlist):
@@ -278,11 +288,11 @@ def main():
             bruteforcer = SubdomainBruteforcer()
             found = bruteforcer.discover_subdomains(cleaned_domain, wordlist)
             print(f"\nFound {len(found)} subdomains")
-            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
         
         elif choice == '8':
             while True:
-                url = input("Enter website URL (e.g., http://example.com): ").strip()
+                url = get_input("Enter website URL (e.g., http://example.com): ").strip()
                 if not re.match(r'^https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', url):
                     print(Fore.RED + "[!] Invalid URL format. Must include http:// or https://" + Style.RESET_ALL)
                     continue
@@ -304,10 +314,10 @@ def main():
             else:
                 print(f"\n{Fore.RED}[!] No known CMS detected{Style.RESET_ALL}")
             
-            input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
+            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
 
         elif choice == '9':  
-            print("Exiting...")
+            print(Fore.RED + "Exiting...")
             break
 
         else:
@@ -710,16 +720,16 @@ class BruteForcer:
 
     def _get_yes_no(self, prompt):
         while True:
-            response = input(prompt).strip().lower()
+            response = get_input(prompt).strip().lower()
             if response in ('y', 'n'):
                 return response == 'y'
             print(Fore.RED + "[!] Invalid choice. Please enter Y or N." + Style.RESET_ALL)
 
     def _get_input(self, prompt, validation_func=None):
         while True:
-            user_input = input(prompt).strip()
+            user_input = get_input(prompt).strip()
             if not user_input:
-                print(Fore.RED + "[!] Input cannot be empty. Please provide a valid value." + Style.RESET_ALL)
+                print(Fore.RED + "[!] get_input cannot be empty. Please provide a valid value." + Style.RESET_ALL)
                 continue
             if validation_func and not validation_func(user_input):
                 continue
@@ -740,7 +750,7 @@ class BruteForcer:
     def _get_port(self, service):
         default_port = 22 if service == 'ssh' else 21 if service == 'ftp' else 23
         while True:
-            port_input = input(f"Port (default {default_port}): ").strip()
+            port_input = get_input(f"Port (default {default_port}): ").strip()
             if not port_input:
                 return default_port
             if port_input.isdigit() and 1 <= int(port_input) <= 65535:
