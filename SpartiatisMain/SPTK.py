@@ -20,7 +20,7 @@ init(autoreset=True)
 #Exit Shortcut
 def get_input(prompt):
     user_input = input(prompt).strip()
-    if user_input.lower() in ('exit'):
+    if user_input.lower() == ('exit'):
         print(Fore.RED + "\nExiting..." + Style.RESET_ALL)
         sys.exit(0)
     return user_input
@@ -33,15 +33,21 @@ def main():
     while True:
         clear_screen() 
         show_banner()  
-        print(Fore.GREEN + "[1]" + Style.RESET_ALL + " Port Scanner")
-        print(Fore.GREEN + "[2]" + Style.RESET_ALL + " Vulnerability Scanner")
-        print(Fore.GREEN + "[3]" + Style.RESET_ALL + " Service Bruteforcer")
-        print(Fore.GREEN + "[4]" + Style.RESET_ALL + " WAF Detector")
-        print(Fore.GREEN + "[5]" + Style.RESET_ALL + " Web Directory Bruteforcer")
-        print(Fore.GREEN + "[6]" + Style.RESET_ALL + " Subdomain Bruteforcer")
-        print(Fore.GREEN + "[8]" + Style.RESET_ALL + " CMS Detector")
-        print(Fore.RED + "[9]" + Style.RESET_ALL + " Exit")  
+        menu_items = [
+            Fore.GREEN + "[1]" + Style.RESET_ALL + " Port Scanner",
+            Fore.GREEN + "[2]" + Style.RESET_ALL + " Vulnerability Scanner",
+            Fore.GREEN + "[3]" + Style.RESET_ALL + " Service Bruteforcer",
+            Fore.GREEN + "[4]" + Style.RESET_ALL + " WAF Detector",
+            Fore.GREEN + "[5]" + Style.RESET_ALL + " Web Directory Bruteforcer",
+            Fore.GREEN + "[6]" + Style.RESET_ALL + " Subdomain Bruteforcer",
+            Fore.GREEN + "[8]" + Style.RESET_ALL + " CMS Detector",
+            Fore.RED + "[9]" + Style.RESET_ALL + " Exit"
+        ]
         
+        for item in menu_items:
+            print(item)
+            time.sleep(0.1)
+
         choice = get_input("\n" + Fore.YELLOW + "[+] Select an option: " + Style.RESET_ALL)
 
         if choice == '1':
@@ -1375,13 +1381,15 @@ def show_banner():
                                                                                             
     """ + Fore.YELLOW + "Spartiatis the Hellenic enumeration Pentest Toolkit" + Style.RESET_ALL
     version = Fore.CYAN + "Version:" + Fore.RED + "1.0" + Style.RESET_ALL
-    authors = Fore.MAGENTA + "Homepage:" + Fore.YELLOW + "N/A.com" + Style.RESET_ALL
+    authors = Fore.MAGENTA  + "github.com/billidev200/SpartiatisToolkit" + Style.RESET_ALL
     warning = Fore.RED + "WARNING: Use only on authorized systems!" + Style.RESET_ALL
-
+    commands = Fore.GREEN + "Commands: Exit" + Style.RESET_ALL
+    
     print(center_text(banner))
     print(center_text(version))
     print(center_text(authors))
     print(center_text(warning))
+    print(center_text(commands))
 
 if __name__ == "__main__":
     main()
