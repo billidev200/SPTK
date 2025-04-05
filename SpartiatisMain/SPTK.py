@@ -57,30 +57,53 @@ def main():
                     print(Fore.RED + "[!] Invalid IP address format" + Style.RESET_ALL)
                     continue
                 try:
-                    start_port = int(get_input("Enter start port [1-65535]: "))
-                    end_port = int(get_input("Enter end port [1-65535]: "))
-                    if not (1 <= start_port <= 65535 and 1 <= end_port <= 65535):
+                    octets = list(map(int, target.split('.')))
+                    if not all(0 <= octet <= 255 for octet in octets):
                         raise ValueError
-                    if start_port > end_port:
-                        print(Fore.RED + "[!] Start port must be <= end port" + Style.RESET_ALL)
-                        continue
-                except ValueError:
-                    print(Fore.RED + "[!] Invalid port numbers" + Style.RESET_ALL)
+                except:
+                    print(Fore.RED + "[!] Invalid IP address values" + Style.RESET_ALL)
                     continue
-                
-                ports = range(start_port, end_port + 1)
-                scanner = PortScanner()
-                results = scanner.scan_ports(target, ports)
-                
-                print(Fore.RED + "\n[!] Scan Results:\n")
-                print("Port\tStatus\tService\t\tBanner")
-                print("-----\t------\t-------\t\t------")
-                for port, status, service, banner in results:
-                    print(f"{Fore.WHITE}{port:<8}{Fore.GREEN}{status:<10}{Fore.YELLOW}{service.ljust(15)}{Fore.CYAN}{banner[:50]}")
-                
-                get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
                 break
 
+            while True:
+                print("\nPort Range Options:")
+                print(f"{Fore.CYAN}[1]{Style.RESET_ALL} Default (1-1024)")
+                print(f"{Fore.CYAN}[2]{Style.RESET_ALL} Full range (1-65535)")
+                print(f"{Fore.CYAN}[3]{Style.RESET_ALL} Custom range")
+                range_choice = get_input(Fore.YELLOW + "\nSelect port range: " + Style.RESET_ALL)
+
+                try:
+                    if range_choice == '1':
+                        ports = range(1, 1025)
+                    elif range_choice == '2':
+                        ports = range(1, 65536)
+                    elif range_choice == '3':
+                        start = int(get_input("Start port (1-65535): "))
+                        end = int(get_input("End port (1-65535): "))
+                        if not (1 <= start <= 65535 and 1 <= end <= 65535):
+                            raise ValueError
+                        if start > end:
+                            print(Fore.RED + "[!] Start port must be <= end port" + Style.RESET_ALL)
+                            continue
+                        ports = range(start, end+1)
+                    else:
+                        raise ValueError
+                    break
+                except ValueError:
+                    print(Fore.RED + "[!] Invalid selection" + Style.RESET_ALL)
+                    continue
+
+            scanner = PortScanner()
+            results = scanner.scan_ports(target, ports)
+            
+            print(Fore.RED + "\n[!] Scan Results:\n")
+            print("Port\tStatus\tService\t\tBanner")
+            print("-----\t------\t-------\t\t------")
+            for port, status, service, banner in results:
+                print(f"{Fore.WHITE}{port:<8}{Fore.GREEN}{status:<10}{Fore.YELLOW}{service.ljust(15)}{Fore.CYAN}{banner[:50]}")
+            
+            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
+        
         elif choice == '2':
             while True:
                 target = get_input("Enter target IP: ").strip()
@@ -329,7 +352,6 @@ def main():
         else:
             print(Fore.RED + "[!] Invalid option, please try again")
             time.sleep(1)
-
 # Port Scanner 
 class PortScanner:
     def __init__(self):
