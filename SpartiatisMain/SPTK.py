@@ -195,6 +195,9 @@ def main():
 
         elif choice == '4':
             while True:
+
+                import urllib3
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 url = get_input("Enter URL (e.g., http://example.com): ").strip()
                 if not re.match(r'^https?://([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(/.*)?$', url):
                     print(Fore.RED + "[!] Invalid URL format. Must include http:// or https:// and valid domain" + Style.RESET_ALL)
@@ -214,7 +217,7 @@ def main():
             result = waf_scanner.detect_waf(url)
             print(Fore.YELLOW + f"WAF Detection Result: {result}" + Style.RESET_ALL)
             
-            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
+            get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL)
 
         elif choice == '5':
             while True:
@@ -327,18 +330,17 @@ def main():
                     continue
                 break
             
+
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
             cms_detector = CMSDetector()
-            with tqdm(total=len(cms_detector.cms_signatures), 
-                    desc=f"{Fore.CYAN}Scanning for CMS{Style.RESET_ALL}",
-                    bar_format="{l_bar}{bar:50}{r_bar}") as pbar:
-                
-                cms_list, version = cms_detector.detect_cms(url)
-                pbar.update(len(cms_detector.cms_signatures))
+            cms_list, version = cms_detector.detect_cms(url)
             
             if cms_list:
                 print(f"\n{Fore.GREEN}[+] Detected CMS:{Style.RESET_ALL}")
                 for cms in cms_list:
-                    ver_info = f" ({version})" if version and cms in ['WordPress','Joomla','Drupal'] else ""
+                    ver_info = f" ({version})" if version and cms in ['WordPress','Joomla','Drupal','Shopify','Magento'] else ""
                     print(f"{Fore.YELLOW}- {cms}{ver_info}{Style.RESET_ALL}")
             else:
                 print(f"\n{Fore.RED}[!] No known CMS detected{Style.RESET_ALL}")
