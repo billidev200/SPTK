@@ -14,7 +14,9 @@
 - SSH,Telnet,FTP Bruteforcer
 - WAF Detector
 - Web Directory Bruteforcer
-- Web Vulnerability Scanner
+- Web Subdomain Bruteforcer
+- Vulnerability Scanner
+- Cms Detector
 
 ## 🛠️ Installation
 
