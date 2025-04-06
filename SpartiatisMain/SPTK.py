@@ -13,6 +13,7 @@ from colorama import Fore, Style, init
 from tqdm import tqdm 
 import dns.resolver
 import sys
+from collections import Counter
 init(autoreset=True)
 
 
@@ -34,13 +35,13 @@ def main():
         clear_screen() 
         show_banner()  
         menu_items = [
-            Fore.GREEN + "[1]" + Style.RESET_ALL + " Port Scanner",
-            Fore.GREEN + "[2]" + Style.RESET_ALL + " Vulnerability Scanner",
-            Fore.GREEN + "[3]" + Style.RESET_ALL + " Service Bruteforcer",
-            Fore.GREEN + "[4]" + Style.RESET_ALL + " WAF Detector",
-            Fore.GREEN + "[5]" + Style.RESET_ALL + " Web Directory Bruteforcer",
-            Fore.GREEN + "[6]" + Style.RESET_ALL + " Subdomain Bruteforcer",
-            Fore.GREEN + "[8]" + Style.RESET_ALL + " CMS Detector",
+            Fore.CYAN + "[1]" + Style.RESET_ALL + " Port Scanner",
+            Fore.CYAN + "[2]" + Style.RESET_ALL + " Vulnerability Scanner",
+            Fore.CYAN + "[3]" + Style.RESET_ALL + " Service Bruteforcer",
+            Fore.CYAN + "[4]" + Style.RESET_ALL + " WAF Detector",
+            Fore.CYAN + "[5]" + Style.RESET_ALL + " Web Directory Bruteforcer",
+            Fore.CYAN + "[6]" + Style.RESET_ALL + " Subdomain Bruteforcer",
+            Fore.CYAN + "[8]" + Style.RESET_ALL + " CMS Detector",
             Fore.RED + "[9]" + Style.RESET_ALL + " Exit"
         ]
         
@@ -70,7 +71,7 @@ def main():
                 print(f"{Fore.CYAN}[1]{Style.RESET_ALL} Default (1-1024)")
                 print(f"{Fore.CYAN}[2]{Style.RESET_ALL} Full range (1-65535)")
                 print(f"{Fore.CYAN}[3]{Style.RESET_ALL} Custom range")
-                range_choice = get_input(Fore.YELLOW + "\nSelect port range: " + Style.RESET_ALL)
+                range_choice = get_input("\nSelect port range: " + Style.RESET_ALL)
 
                 try:
                     if range_choice == '1':
@@ -101,7 +102,10 @@ def main():
             print("-----\t------\t-------\t\t------")
             for port, status, service, banner in results:
                 print(f"{Fore.WHITE}{port:<8}{Fore.GREEN}{status:<10}{Fore.YELLOW}{service.ljust(15)}{Fore.CYAN}{banner[:50]}")
-            
+
+            detected_os, os_version = scanner.detect_os(results)
+            print(Fore.GREEN + f"\n[!] OS Detection: {detected_os} ({os_version})" + Style.RESET_ALL)
+
             get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
         
         elif choice == '2':
@@ -124,7 +128,7 @@ def main():
                 print(f"{Fore.CYAN}[1]{Style.RESET_ALL} Default (1-1024)")
                 print(f"{Fore.CYAN}[2]{Style.RESET_ALL} Full range (1-65535)")
                 print(f"{Fore.CYAN}[3]{Style.RESET_ALL} Custom range")
-                range_choice = get_input(Fore.YELLOW + "\nSelect port range: " + Style.RESET_ALL)
+                range_choice = get_input("\nSelect port range: " + Style.RESET_ALL)
 
                 try:
                     if range_choice == '1':
@@ -162,7 +166,7 @@ def main():
             bruteforcer = BruteForcer()
             
             service = bruteforcer._get_input("Select Service (SSH, FTP, Telnet): ", bruteforcer._validate_service)
-            target = bruteforcer._get_input("Target IP: ")
+            target = bruteforcer._get_input("Enter Target IP: ")
             port = bruteforcer._get_port(service)
             use_dual_wordlist = bruteforcer._get_yes_no("Use separate wordlists for username and password? (y/n): ")
 
@@ -187,7 +191,7 @@ def main():
                     password_wordlist, port)
 
             if result:
-                print(Fore.GREEN + f"[+] Successful login: {result[0]}:{result[1]}" + Style.RESET_ALL)
+                print(Fore.GREEN + f"[!] Successful login: {result[0]}:{result[1]}" + Style.RESET_ALL)
             else:
                 print(Fore.RED + "[!] Bruteforce failed." + Style.RESET_ALL)
 
@@ -215,7 +219,7 @@ def main():
 
             waf_scanner = WafScanner()
             result = waf_scanner.detect_waf(url)
-            print(Fore.YELLOW + f"WAF Detection Result: {result}" + Style.RESET_ALL)
+            print(Fore.GREEN + f"\n[!] WAF Detection Result: {result}" + Style.RESET_ALL)
             
             get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL)
 
@@ -260,7 +264,7 @@ def main():
 
             bruteforcer = DirectoryBruteforcer()
             found = bruteforcer.discover_directories(url, wordlist)
-            print(f"\nFound {len(found)} directories")
+            print(f"\nFound: {len(found)} directories")
             get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
             
         elif choice == '6':
@@ -319,7 +323,7 @@ def main():
 
             bruteforcer = SubdomainBruteforcer()
             found = bruteforcer.discover_subdomains(cleaned_domain, wordlist)
-            print(f"\nFound {len(found)} subdomains")
+            print(f"\nFound: {len(found)} subdomains")
             get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
         
         elif choice == '8':
@@ -338,7 +342,7 @@ def main():
             cms_list, version = cms_detector.detect_cms(url)
             
             if cms_list:
-                print(f"\n{Fore.GREEN}[+] Detected CMS:{Style.RESET_ALL}")
+                print(f"\n{Fore.GREEN}[!] Detected CMS:{Style.RESET_ALL}")
                 for cms in cms_list:
                     ver_info = f" ({version})" if version and cms in ['WordPress','Joomla','Drupal','Shopify','Magento'] else ""
                     print(f"{Fore.YELLOW}- {cms}{ver_info}{Style.RESET_ALL}")
@@ -354,6 +358,7 @@ def main():
         else:
             print(Fore.RED + "[!] Invalid option, please try again")
             time.sleep(1)
+
 # Port Scanner 
 class PortScanner:
     def __init__(self):
@@ -436,7 +441,88 @@ class PortScanner:
         self.lock = threading.Lock()
         self.progress = 0
         self.total_tasks = 0
+        
+    def detect_os(self, scan_results):
+        os_hints = []
+        version_patterns = {
+            'Windows': [
+                (r'Windows NT (\d+\.\d+)', {
+                    '6.3': 'Windows 8.1/Server 2012 R2',
+                    '10.0': 'Windows 10/11/Server 2016-2022'
+                }),
+                (r'IIS/(\d+\.\d+)', {
+                    '7.5': 'Windows Server 2008 R2',
+                    '8.5': 'Windows Server 2012',
+                    '10.0': 'Windows Server 2016/2019/2022'
+                })
+            ],
+            'Linux': [
+                (r'Ubuntu[ /-](\d+\.\d+)', {}),
+                (r'Debian[ /-](\d+)', {}),
+                (r'CentOS[ /-](\d+)', {}),
+                (r'OpenSSH_(\d+\.\d+)', {})
+            ],
+            'macOS': [
+                (r'Darwin[ /](\d+\.\d+\.\d+)', {
+                    '20.6.0': 'macOS Big Sur (11.0)',
+                    '21.0.0': 'macOS Monterey (12.0)',
+                    '22.0.0': 'macOS Ventura (13.0)'
+                }),
+                (r'Mac OS X (\d+_\d+(_\d+)?)', lambda v: f"macOS {v.replace('_', '.')}"),
+                (r'OpenSSH_[^\s]+ (LibreSSL/\d+\.\d+\.\d+)', {})
+            ]
+        }
 
+        for port, status, service, banner in scan_results:
+            banner_lower = banner.lower()
+            
+            # Windows detection
+            if 'microsoft' in banner_lower or 'iis' in banner_lower or 'win32' in banner_lower:
+                self._parse_versions('Windows', banner, version_patterns['Windows'], os_hints)
+            
+            # Linux detection
+            if 'linux' in banner_lower or 'ubuntu' in banner_lower or 'debian' in banner_lower:
+                self._parse_versions('Linux', banner, version_patterns['Linux'], os_hints)
+            
+            # macOS detection
+            if 'darwin' in banner_lower or 'mac os x' in banner_lower or 'libressl' in banner_lower:
+                self._parse_versions('macOS', banner, version_patterns['macOS'], os_hints)
+
+            # Service-specific checks
+            if service == 'SSH':
+                if 'openssh' in banner_lower:
+                    if 'ubuntu' in banner_lower:
+                        self._parse_versions('Linux', banner, version_patterns['Linux'], os_hints)
+                    elif 'darwin' in banner_lower:
+                        self._parse_versions('macOS', banner, version_patterns['macOS'], os_hints)
+            elif service == 'Microsoft Terminal Services':
+                os_hints.append(('Windows', 'RDP Service detected'))
+
+        return self._analyze_results(os_hints)
+
+    def _parse_versions(self, os_name, banner, patterns, os_hints):
+        for pattern, version_map in patterns:
+            match = re.search(pattern, banner, re.IGNORECASE)
+            if match:
+                version = match.group(1)
+                if callable(version_map):
+                    formatted = version_map(version)
+                else:
+                    formatted = version_map.get(version, f"version {version}")
+                os_hints.append((os_name, formatted))
+                return
+        os_hints.append((os_name, "Unknown version"))
+
+    def _analyze_results(self, os_hints):
+        if not os_hints:
+            return ('Unknown', 'No version information')
+        
+        counter = Counter(os_hints)
+        most_common = counter.most_common(3)
+        
+        best_match = most_common[0][0]
+        return best_match
+    
     def _update_progress(self, bar_format):
         with tqdm(
             total=self.total_tasks,
@@ -498,7 +584,7 @@ class PortScanner:
         self.progress = 0
 
         
-        BAR_COLOR = Fore.BLUE
+        BAR_COLOR = Fore.GREEN
         TEXT_COLOR = Fore.CYAN
         RESET = Style.RESET_ALL
         
@@ -550,7 +636,6 @@ class VulnerabilityScanner:
     def basic_checks(self, open_ports):
         vulnerabilities = []
         for port, status, service, banner in open_ports:
-            # Existing checks
             if service == 'FTP' and port == 21:
                 vulnerabilities.append("Potential FTP anonymous login")
                 if "vsFTPd" in banner and "2.3.4" in banner:
@@ -563,7 +648,6 @@ class VulnerabilityScanner:
                 vulnerabilities.append("Check for common web vulnerabilities")
                 if "Apache/2.4.49" in banner or "Apache/2.4.50" in banner:
                     vulnerabilities.append("Critical: Apache Path Traversal (CVE-2021-41773)")
-            
             # New vulnerability checks
             # 1. HTTP Server Header Disclosure
             if service in ['HTTP', 'HTTPS']:
@@ -722,13 +806,13 @@ class BruteForcer:
     def _update_progress(self):
         bar_format = (
             f"{Fore.CYAN}{{desc}}: {{percentage:3.0f}}%|"
-            f"{Fore.BLUE}{{bar}}{Style.RESET_ALL}| "
+            f"{Fore.GREEN}{{bar}}{Style.RESET_ALL}| "
             f"{Fore.CYAN}{{n_fmt}}/{{total_fmt}} [{{elapsed}}<{{remaining}}, {{rate_fmt}}]{Style.RESET_ALL}"
         )
 
         with tqdm(
             total=self.total_tasks,
-            desc=f"{Fore.CYAN}Brute Force Progress{Style.RESET_ALL}",
+            desc=f"{Fore.CYAN}BruteForce Progress{Style.RESET_ALL}",
             bar_format=bar_format,
             position=0,
             leave=False,
@@ -759,7 +843,7 @@ class BruteForcer:
         while True:
             user_input = get_input(prompt).strip()
             if not user_input:
-                print(Fore.RED + "[!] get_input cannot be empty. Please provide a valid value." + Style.RESET_ALL)
+                print(Fore.RED + "[!] Please provide a valid value." + Style.RESET_ALL)
                 continue
             if validation_func and not validation_func(user_input):
                 continue
@@ -856,7 +940,7 @@ class BruteForcer:
                                 ftp = ftplib.FTP()
                                 ftp.connect(target, port, timeout=timeout)
                                 ftp.login(username, password)
-                                tqdm.write(f"\n[+] FTP Success: {username}:{password}")
+                                tqdm.write(Fore.GREEN + f"\n[!] FTP Success: {username}:{password}")
                                 ftp.quit()
                                 self.scan_complete = True
                                 return (username, password)
@@ -877,7 +961,7 @@ class BruteForcer:
                             ftp = ftplib.FTP()
                             ftp.connect(target, port, timeout=timeout)
                             ftp.login(username, password)
-                            tqdm.write(f"\n[+] FTP Success: {username}:{password}")
+                            tqdm.write(Fore.GREEN + f"\n[!] FTP Success: {username}:{password}")
                             ftp.quit()
                             self.scan_complete = True
                             return (username, password)
@@ -912,7 +996,7 @@ class BruteForcer:
                                 tn.write(password.encode('ascii') + b"\n")
                                 result = tn.expect([b"Login incorrect", b"Last login"], timeout=timeout)
                                 if result[0] == 1:
-                                    tqdm.write(f"\n[+] Telnet Success: {username}:{password}")
+                                    tqdm.write(Fore.GREEN + f"\n[!] Telnet Success: {username}:{password}")
                                     tn.close()
                                     self.scan_complete = True
                                     return (username, password)
@@ -938,7 +1022,7 @@ class BruteForcer:
                             tn.write(password.encode('ascii') + b"\n")
                             result = tn.expect([b"Login incorrect", b"Last login"], timeout=timeout)
                             if result[0] == 1:
-                                tqdm.write(f"\n[+] Telnet Success: {username}:{password}")
+                                tqdm.write(Fore.GREEN + f"\n[!] Telnet Success: {username}:{password}")
                                 tn.close()
                                 self.scan_complete = True
                                 return (username, password)
@@ -1144,7 +1228,7 @@ class DirectoryBruteforcer:
                         with self.lock:
                             if url not in self.found:
                                 self.found.add(url)
-                                tqdm.write(f"{Fore.RED}[!] Found: {url}{RESET}")
+                                tqdm.write(f"{Fore.RED}[!] Found: {Fore.YELLOW}{url}{RESET}")
                 except Exception as e:
                     pass
                 finally:
