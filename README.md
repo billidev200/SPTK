@@ -20,34 +20,39 @@
 
 ## 🛠️ Installation
 
-Install my-project with npm
+Step 1 | Windows | Python3 with environmental variables to run with python terminal 
 
 ```bash
-  npm install my-project
-  cd my-project
-```
-Install my-project with npm
-
-```bash
-  npm install my-project
-  cd my-project
-```
-Install my-project with npm
-
-```bash
-  npm install my-project
-  cd my-project
-```
-Install my-project with npm
-
-```bash
-  npm install my-project
-  cd my-project
+  https://www.python.org/downloads/release/python-3133/
 ```
 
-## 💻 Using Spartiatis
+Step 1 | Linux  | Python3 
+
 ```bash
-cd Spartiatis
+  sudo apt install python3
+```
+##
+Step 2 | Clone repo 
+
+```bash
+  git clone https://github.com/billidev200/SPTK.git
+```
+##
+Step 3 | cd SPTK folder/repo we just cloned
+
+```bash
+  cd SPTK
+```
+##
+Step 4 | Installing the tool 
+
+```bash
+  pip install .
+```
+
+## 💻 Using Spartiatis | Run from any location
+```bash
+cd SPTK
 ```
 ## 🔧 Updating Spartiatis
 ```bash
