@@ -40,8 +40,8 @@ def main():
             Fore.CYAN + "[4]" + Style.RESET_ALL + " WAF Detector",
             Fore.CYAN + "[5]" + Style.RESET_ALL + " Web Directory Bruteforcer",
             Fore.CYAN + "[6]" + Style.RESET_ALL + " Subdomain Bruteforcer",
-            Fore.CYAN + "[8]" + Style.RESET_ALL + " CMS Detector",
-            Fore.RED + "[9]" + Style.RESET_ALL + " Exit"
+            Fore.CYAN + "[7]" + Style.RESET_ALL + " CMS Detector",
+            Fore.RED + "[8]" + Style.RESET_ALL + " Exit"
         ]
         
         for item in menu_items:
@@ -325,7 +325,7 @@ def main():
             print(f"\nFound: {len(found)} subdomains")
             get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..."+ Style.RESET_ALL )
         
-        elif choice == '8':
+        elif choice == '7':
             while True:
                 url = get_input("Enter website URL (e.g., http://example.com): ").strip()
                 if not re.match(r'^https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', url):
@@ -350,7 +350,7 @@ def main():
             
             get_input(Fore.YELLOW + "\n[+] Press Enter to return to main menu..." + Style.RESET_ALL)
 
-        elif choice == '9':  
+        elif choice == '8':  
             print(Fore.RED + "Exiting...")
             break
 
